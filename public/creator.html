@@ -294,6 +294,7 @@ let drag = null;
 let eventDrag = null;
 let dialogContext = null;
 let placementMode = null;
+let pendingPerson = null;
 const requestedEditId = new URLSearchParams(location.search).get('edit');
 const keepLocalDraft = requestedEditId === null;
 let editUnavailable = !keepLocalDraft;
@@ -689,6 +690,7 @@ function renderPlot(restoreFocus) {
     const eventY = y(item.age);
     const marker = element('g', {class:'event-mark', 'data-event':item.id, tabindex:0, role:'button', 'aria-label':`Edit ${item.type}, ${ageText(item.age)}`});
     eventRules.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
+    marker.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'transparent','stroke-width':10,'pointer-events':'stroke'}), element('title', {}, 'Drag the label or dotted line to move; click to edit.'));
     const mobileEventLabels = window.matchMedia('(max-width:680px)').matches;
     const chipWidth = Math.min(130, Math.max(70, item.type.length * 5.5 + 16), width - 80);
     const chipText = item.type.length > 19 ? `${item.type.slice(0, 18)}…` : item.type;
@@ -737,6 +739,7 @@ function render() {
   title.textContent = started ? 'Start with one person.' : 'Every timeline begins at birth.';
   helper.textContent = started ? 'Tap anywhere on the graph to add a relationship at that age and distance.' : 'Choose a birth year above to draw a timeline.';
   $('hint').replaceChildren(title, helper);
+  $('add-person').textContent = pendingPerson && placementMode === 'person' ? `Place ${pendingPerson.name || pendingPerson.subtype}` : 'Add person';
   $('add-person').classList.toggle('placement-active', placementMode === 'person');
   $('add-event').classList.toggle('placement-active', placementMode === 'event');
   $('cancel-placement').hidden = !placementMode;
@@ -890,7 +893,11 @@ function finish(event, cancelled) {
     } else {
       placementMode = null;
       render();
-      openPersonDialog(null, gesture.place);
+      if (pendingPerson) {
+        remember();
+        const track = createPerson(pendingPerson, gesture.place);
+        pendingPerson = null; selected = track.id; commit('Person added. Drag the line to show how closeness changed.');
+      } else openPersonDialog(null, gesture.place);
     }
   }
 }
@@ -965,8 +972,8 @@ function openPersonDialog(track, place) {
   if (!track && data.relationships.length >= 100) return status('This timeline already has 100 relationships.', true);
   dialogContext = { track, place };
   $('dialog-title').textContent = track ? 'Edit relationship' : 'Add a relationship';
-  $('dialog-age').textContent = ageText(track ? track.points[0][0] : place[0]);
-  $('person-submit').textContent = track ? 'Save details' : 'Add relationship';
+  $('dialog-age').textContent = track ? ageText(track.points[0][0]) : place ? ageText(place[0]) : 'Who would you like to add?';
+  $('person-submit').textContent = track ? 'Save details' : place ? 'Add relationship' : 'Place on timeline';
   $('person-name').value = track?.name ?? '';
   $('category').value = track?.category ?? 'family';
   setRelationshipTypes(track?.subtype);
@@ -976,6 +983,9 @@ function openPersonDialog(track, place) {
 for (const type of eventTypes) $('event-type').add(new Option(type,type));
 function openEvent(age, item = null) {
   if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
+  placementMode = null;
+  pendingPerson = null;
+  render();
   editingEvent = item;
   eventAge = item?.age ?? round(clamp(age,0,horizon(data)));
   $('event-type').value = item?.type ?? eventTypes[0];
@@ -990,21 +1000,26 @@ $('event-gutter').addEventListener('click', event => {
 });
 function setPlacement(mode) {
   if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
+  pendingPerson = null;
   placementMode = placementMode === mode ? null : mode;
   selected = null;
-  $('guide').open = false;
   status(placementMode === 'person' ? 'Click the graph where this person should begin.' : placementMode === 'event' ? 'Click the graph at the age of the life event.' : 'Placement cancelled.');
   render();
 }
-document.addEventListener('keydown', event => { if (event.key === 'Escape' && placementMode) { placementMode = null; status('Placement cancelled.'); render(); } });
-$('add-person').addEventListener('click', () => setPlacement('person'));
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && placementMode) { placementMode = null; pendingPerson = null; status('Placement cancelled.'); render(); } });
+function startPerson() {
+  if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
+  placementMode = null; pendingPerson = null; selected = null; render();
+  openPersonDialog(null, null);
+}
+$('add-person').addEventListener('click', startPerson);
 $('add-event').addEventListener('click', () => setPlacement('event'));
-$('cancel-placement').addEventListener('click', () => { placementMode = null; status('Placement cancelled.'); render(); });
+$('cancel-placement').addEventListener('click', () => { placementMode = null; pendingPerson = null; status('Placement cancelled.'); render(); });
 $('close-editor').addEventListener('click', () => { selected = null; render(); });
 for (const button of document.querySelectorAll('[data-guide]')) button.addEventListener('click', () => {
   const action = button.dataset.guide;
   if (action === 'event') setPlacement('event');
-  else if (action === 'person') setPlacement('person');
+  else if (action === 'person') startPerson();
   else if (action === 'shape') { $('guide').open = false; selected = selected || data.relationships[0]?.id || null; render(); status('Drag the selected line to show a change in closeness. Use Undo to try again.'); }
   else if (action === 'review') { $('tagline').focus(); status('Review the public tagline, then choose Publish & share or Save / editing link.'); }
 });
@@ -1022,29 +1037,36 @@ $('event-form').addEventListener('submit', event=> {
   remember();
   const item={id:editingEvent?.id??crypto.randomUUID(),age,type:$('event-type').value,label:$('event-label').value.trim()};
   data.events=data.events.filter(existing=>existing.id!==item.id).concat(item).sort((a,b)=>a.age-b.age);
-  $('event-dialog').close();commit('Life event saved.');
+  $('event-dialog').close();commit('Life event saved. Drag its label or dotted line to move it; click to edit.');
 });
 $('cancel').addEventListener('click', () => $('person-dialog').close());
 $('edit').addEventListener('click', () => {
   const track = activeTrack();
   if (track) openPersonDialog(track);
 });
+function createPerson(fields, place) {
+  const max = horizon(data);
+  const points = [place];
+  if (place[0] < max) points.push([max, place[1]]);
+  const track = { id: crypto.randomUUID(), ...fields, ending: 'ongoing', points };
+  data.relationships.push(track);
+  return track;
+}
 $('person-form').addEventListener('submit', event => {
   event.preventDefault();
   if (!dialogContext) return;
   const name = $('person-name').value.trim();
-  remember();
   const fields = { name, category: $('category').value, subtype: $('subtype').value.trim() };
   let { track, place } = dialogContext;
-  if (track) Object.assign(track, fields);
-  else {
-    const max = horizon(data);
-    const points = [place];
-    if (place[0] < max) points.push([max, place[1]]);
-    const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `track-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    track = { id, ...fields, ending: 'ongoing', points };
-    data.relationships.push(track);
+  if (!track && !place) {
+    pendingPerson = fields; placementMode = 'person';
+    $('person-dialog').close(); render();
+    status(`Place ${name || fields.subtype} on the graph: choose when you met and how close you were.`);
+    return;
   }
+  remember();
+  if (track) Object.assign(track, fields);
+  else track = createPerson(fields, place);
   selected = track.id;
   $('person-dialog').close();
   commit();

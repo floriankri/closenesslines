@@ -12,3 +12,5 @@ Branch: `codex/guided-creator-preview`. Experimental; do not merge or deploy wit
 Verified: Node syntax, 18 existing tests, build, diff whitespace. Browser at 1280px and 390px: draft restore, guide event placement across a relationship, event drag, selected-person panel, add person, cancel/Escape, local publish and shared event tooltip. Mobile plot362px in390px viewport with no horizontal overflow. Synthetic local data only.
 
 Not yet implemented: AI, family questionnaire, separate private viewer sharing/publication backend, or a redesigned point-removal interaction. Real-device touch/Safari and dense coincident event labels need further testing.
+
+Follow-up: person actions now open details first, then place the chosen person; the guide stays open unless explicitly closed. Events can be dragged by their dotted rule as well as their label. Opening an event dialog clears placement state, including when entered through the desktop gutter. Browser verified person-first placement, dotted-rule drag and gutter-create-then-drag; all18 tests/syntax checks pass.
