@@ -74,7 +74,7 @@ const ClosenessPlot = (() => {
     defs.append(gradient, mask);
   }
 
-  function render(svg, { age, lines, ending = 'snapshot', selected = null, preview = false }) {
+  function render(svg, { age, lines, ending = 'snapshot', selected = null, preview = false, tooltip = null }) {
     const width = preview ? 250 : svg.clientWidth || 600;
     const height = preview ? 170 : svg.clientHeight || 680;
     const mid = width / 2;
@@ -88,6 +88,7 @@ const ClosenessPlot = (() => {
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     const defs = node('defs');
     const group = node('g');
+    const hits = node('g', { 'aria-label': 'Relationship lines' });
     const text = node('g', { 'font-family': 'system-ui,sans-serif', 'font-size': 10, fill: 'var(--muted, #5f5a51)' });
     const horizontalRule = (value, stroke) => node('line', { x1: 7, x2: width - 7, y1: y(value), y2: y(value), stroke });
     const rule = 'var(--rule, #d4cec0)';
@@ -133,11 +134,49 @@ const ClosenessPlot = (() => {
       if (line.ending === 'death') {
         thread.append(node('circle', { cx: endX, cy: endY, r: preview ? 2.6 : 4.6, fill: paper, stroke: accent, 'stroke-width': preview ? .85 : 1.5 }));
       }
-      if (!preview && line.label) thread.append(node('title', {}, line.label));
+      if (line.label && !tooltip) thread.append(node('title', {}, line.label));
       group.append(thread);
+
+      // Keep the visible drawing quiet, but give each line a generous, touch-friendly
+      // target for the read-only timeline and gallery previews. The hit layer never
+      // intercepts the enclosing card link, so hovering a thumbnail preserves navigation.
+      if (line.label && tooltip) {
+        const hit = node('path', {
+          d: pathFor(points), fill: 'none', stroke: 'transparent', 'stroke-width': 18,
+          'stroke-linecap': 'round', 'pointer-events': 'stroke', 'class': 'plot-hit',
+          ...(preview ? {} : { tabindex: 0, role: 'button', 'aria-label': line.label })
+        });
+        const show = event => {
+          if (!tooltip) return;
+          tooltip.textContent = line.label;
+          tooltip.hidden = false;
+          const anchor = hit.getBoundingClientRect();
+          const hasPointer = event && Number.isFinite(event.clientX) && event.clientX > 0 && event.clientY > 0;
+          const x = hasPointer ? event.clientX : anchor.left + anchor.width / 2;
+          const y = hasPointer ? event.clientY : anchor.top + anchor.height / 2;
+          const left = Math.min(Math.max(8, x + 12), window.innerWidth - tooltip.offsetWidth - 8);
+          const top = Math.min(Math.max(8, y - tooltip.offsetHeight - 10), window.innerHeight - tooltip.offsetHeight - 8);
+          tooltip.style.left = `${left}px`;
+          tooltip.style.top = `${top}px`;
+        };
+        const hide = () => { if (tooltip) tooltip.hidden = true; };
+        hit.addEventListener('pointerenter', show);
+        hit.addEventListener('pointermove', show);
+        hit.addEventListener('pointerleave', event => { if (event.pointerType !== 'touch') hide(); });
+        hit.addEventListener('pointerdown', show);
+        hit.addEventListener('focus', show);
+        hit.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          show(event);
+        });
+        hit.addEventListener('blur', hide);
+        hits.append(hit);
+      }
     }
     if (ending === 'death') group.append(node('circle', { cx: mid, cy: bottom, r: 5, fill: paper, stroke: accent, 'stroke-width': 1.5 }));
-    svg.replaceChildren(defs, group, text);
+    if (tooltip) tooltip.hidden = true;
+    svg.replaceChildren(defs, group, hits, text);
   }
 
   return { node, render, relationshipType, namedLines, publicLines };

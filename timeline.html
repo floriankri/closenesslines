@@ -37,6 +37,7 @@ svg{display:block;width:100%;height:680px}
 #lines button{display:flex;gap:8px;align-items:center;width:100%;padding:8px 7px;min-height:36px;text-align:left;background:none;color:inherit;border:1px solid transparent;border-radius:2px;font:500 .87rem/1.35 var(--ui);overflow-wrap:anywhere;cursor:pointer}
 #lines button:hover,#lines button[aria-pressed="true"]{border-color:var(--rule);background:#f0ebde}
 .swatch{flex:none;width:13px;border-top:2px solid currentColor}
+.line-tooltip{position:fixed;z-index:5;max-width:230px;padding:6px 9px;background:var(--paper);border:1px solid var(--rule);border-radius:2px;box-shadow:0 2px 8px #24241f12;pointer-events:none;font:600 .76rem/1.4 var(--ui)}
 [hidden]{display:none!important}
 @media(max-width:680px){
   .wrap{width:calc(100% - 28px)}
@@ -62,6 +63,7 @@ svg{display:block;width:100%;height:680px}
   <section aria-label="Timeline">
     <div class="axis"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span></div>
     <svg id="timeline-plot" role="img" aria-label="Closeness graph. Age increases from top to bottom."></svg>
+    <div id="line-tooltip" class="line-tooltip" role="tooltip" hidden></div>
   </section>
   <aside class="sidebar">
     <p class="label" id="line-heading">Relationships</p>
@@ -91,11 +93,21 @@ async function openTimeline() {
     const ending = named ? result.timeline.endMode : 'snapshot';
     const viewer = document.getElementById('viewer');
     const plot = document.getElementById('timeline-plot');
+    const tooltip = document.getElementById('line-tooltip');
+    const dismissTooltip = event => {
+      if (event.type === 'pointerdown' && event.target.closest?.('.plot-hit')) return;
+      tooltip.hidden = true;
+    };
+    document.addEventListener('scroll', dismissTooltip, true);
+    document.addEventListener('pointerdown', dismissTooltip, true);
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') tooltip.hidden = true;
+    });
     const list = document.getElementById('lines');
     document.getElementById('line-heading').textContent = named ? 'Relationships' : 'Relationship types';
     let selected = null;
     const buttons = [];
-    const draw = () => ClosenessPlot.render(plot, { age: result.age, lines, ending, selected });
+    const draw = () => ClosenessPlot.render(plot, { age: result.age, lines, ending, selected, tooltip });
     lines.forEach((line, index) => {
       const item = document.createElement('li');
       const button = document.createElement('button');

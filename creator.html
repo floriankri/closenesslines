@@ -52,6 +52,7 @@ svg{display:block;width:100%;height:680px;touch-action:pan-y;user-select:none}
 .terminal{fill:var(--paper);stroke:var(--accent);stroke-width:1.8}
 .hit,.handle{touch-action:none}
 .hit{stroke:transparent;stroke-width:22;fill:none;pointer-events:stroke;cursor:grab}
+.line-tooltip{position:fixed;z-index:5;max-width:230px;padding:6px 9px;background:var(--paper);border:1px solid var(--rule);border-radius:2px;box-shadow:0 2px 8px #24241f12;pointer-events:none;font:600 .76rem/1.4 var(--ui)}
 .handle{cursor:grab}
 .handle:focus-visible{outline:none}
 .handle:focus-visible .knob{stroke:var(--accent);stroke-width:3}
@@ -141,6 +142,7 @@ dialog .fields{justify-content:end;padding-top:4px}
     <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span></div>
     <div class="plot">
       <svg id="plot" aria-label="Closeness graph. Age increases from top to bottom." aria-describedby="plot-help"></svg>
+      <div class="line-tooltip" id="line-tooltip" role="tooltip" hidden></div>
       <div class="hint" id="hint"></div>
     </div>
   </section>
@@ -422,7 +424,29 @@ function element(tag, attributes, value) {
   return node;
 }
 const activeTrack = () => data.relationships.find(track => track.id === selected);
+const tooltip = $('line-tooltip');
+function hideTooltip() {
+  tooltip.hidden = true;
+  tooltip.textContent = '';
+}
+function showTooltip(track, x, y) {
+  if (!track || activeTrack() || drag) return hideTooltip();
+  tooltip.textContent = displayName(track);
+  tooltip.hidden = false;
+  const margin = 10;
+  const gap = 14;
+  const bounds = tooltip.getBoundingClientRect();
+  const left = Math.min(Math.max(margin, x + gap), window.innerWidth - bounds.width - margin);
+  const top = Math.min(Math.max(margin, y + gap), window.innerHeight - bounds.height - margin);
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+window.addEventListener('scroll', hideTooltip, { passive: true, capture: true });
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') hideTooltip();
+});
 function renderPlot(restoreFocus) {
+  hideTooltip();
   const width = svg.clientWidth;
   const height = svg.clientHeight;
   const mid = width / 2;
@@ -496,7 +520,25 @@ function renderPlot(restoreFocus) {
       ? element('circle', { cx: firstX, cy: firstY, r: 10, fill: 'transparent', style: 'pointer-events:all', class: 'hit' })
       : element('path', { d: path, class: 'hit' });
     hit.dataset.track = track.id;
-    hit.append(element('title', {}, displayName(track)));
+    hit.setAttribute('tabindex', '0');
+    hit.setAttribute('role', 'button');
+    hit.setAttribute('aria-label', displayName(track));
+    hit.addEventListener('pointermove', event => showTooltip(track, event.clientX, event.clientY));
+    hit.addEventListener('pointerleave', hideTooltip);
+    hit.addEventListener('focus', () => {
+      const bounds = hit.getBoundingClientRect();
+      showTooltip(track, bounds.left + bounds.width / 2, bounds.top);
+    });
+    hit.addEventListener('blur', hideTooltip);
+    hit.addEventListener('keydown', event => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      hideTooltip();
+      selected = track.id;
+      render();
+      svg.querySelector(`[data-track="${track.id}"]`)?.focus();
+    });
     group.append(hit);
     fragment.append(group);
   }
@@ -628,6 +670,7 @@ function movePoint(track, i, age, distance, originalEnding) {
 }
 svg.addEventListener('pointerdown', event => {
   if (event.button !== 0 || !event.isPrimary || drag) return;
+  hideTooltip();
   const hit = event.target.closest('[data-track]');
   const track = hit && data.relationships.find(item => item.id === hit.dataset.track);
   const point = hit?.dataset.point;

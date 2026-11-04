@@ -32,6 +32,7 @@ input{width:76px}
 .timeline-card:hover{border-color:var(--ink)}
 .timeline-card svg{display:block;width:100%;height:auto;background:#f0ebdf}
 .timeline-card span{display:block;margin:5px 3px 1px}
+.line-tooltip{position:fixed;z-index:5;max-width:230px;padding:6px 9px;background:var(--paper);border:1px solid var(--rule);border-radius:2px;box-shadow:0 2px 8px #24241f12;pointer-events:none;font:600 .76rem/1.4 var(--ui)}
 #more{margin-bottom:24px}
 [hidden]{display:none!important}
 @media(max-width:680px){.wrap{width:calc(100% - 28px)}button,input{min-height:44px}input{font-size:16px}}
@@ -62,6 +63,7 @@ input{width:76px}
 <p id="gallery-status" role="status" aria-live="polite">Loading timelines…</p>
 <ul id="items" aria-label="Shared timelines"></ul>
 <button type="button" id="more" hidden>Load more</button>
+<div id="line-tooltip" class="line-tooltip" role="tooltip" hidden></div>
 <noscript><p>Enable JavaScript to see shared timelines.</p></noscript>
 </main>
 <script src="./config.js"></script>
@@ -73,6 +75,16 @@ const form = document.getElementById('age-filter');
 const status = document.getElementById('gallery-status');
 const items = document.getElementById('items');
 const more = document.getElementById('more');
+const tooltip = document.getElementById('line-tooltip');
+const dismissTooltip = event => {
+  if (event.type === 'pointerdown' && event.target.closest?.('.plot-hit')) return;
+  tooltip.hidden = true;
+};
+document.addEventListener('scroll', dismissTooltip, true);
+document.addEventListener('pointerdown', dismissTooltip, true);
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') tooltip.hidden = true;
+});
 let filters = {};
 let nextCursor;
 let activeRequest;
@@ -84,7 +96,7 @@ function addCard(item) {
   link.className = 'timeline-card';
   link.href = ClosenessAPI.timelineURL(item.publicId);
   const plot = ClosenessPlot.node('svg', { 'aria-hidden': true, focusable: false });
-  ClosenessPlot.render(plot, { age: item.age, lines: ClosenessPlot.publicLines(item.lines), preview: true });
+  ClosenessPlot.render(plot, { age: item.age, lines: ClosenessPlot.publicLines(item.lines), preview: true, tooltip });
   const label = document.createElement('span');
   label.className = 'label';
   label.textContent = `Age ${item.age}`;
