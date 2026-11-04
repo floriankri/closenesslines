@@ -63,6 +63,11 @@ const ClosenessPlot = (() => {
     return path;
   }
 
+  function fadeStartAge(points) {
+    // The final edit segment defines the exit, regardless of the relationship's length.
+    return points.at(-2)?.[0] ?? points[0]?.[0] ?? 0;
+  }
+
   function fadeMask(defs, id, width, height, from, to) {
     const gradient = node('linearGradient', { id: `${id}-gradient`, gradientUnits: 'userSpaceOnUse', x1: 0, x2: 0, y1: from, y2: to });
     gradient.append(
@@ -142,10 +147,8 @@ const ClosenessPlot = (() => {
       const curve = node('path', { d: pathFor(points), fill: 'none', stroke: color,
         'stroke-width': lineWidth + (emphasized ? 1 : 0), 'stroke-linecap': 'round' });
       if (line.ending === 'fade' && points.length > 1) {
-        const span = line.points.at(-1)[0] - line.points[0][0];
-        const fade = Math.max(1, (endY - firstY) * Math.min(.5, Math.max(.16, Math.min(1.5, span) / span)));
         const id = `${prefix}-fade-${index}`;
-        fadeMask(defs, id, width, height, endY - fade, endY);
+        fadeMask(defs, id, width, height, y(fadeStartAge(line.points)), endY);
         curve.setAttribute('mask', `url(#${id})`);
       }
       thread.append(curve, node('circle', { cx: firstX, cy: firstY, r: preview ? 1.65 : 2.9, fill: color }));
@@ -197,5 +200,5 @@ const ClosenessPlot = (() => {
     svg.replaceChildren(defs, group, hits, text);
   }
 
-  return { node, render, relationshipType, namedLines, publicLines, scalePositions };
+  return { node, render, relationshipType, namedLines, publicLines, scalePositions, fadeStartAge };
 })();

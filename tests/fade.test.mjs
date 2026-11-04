@@ -1,0 +1,20 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+
+const source = await readFile(new URL('../public/timeline-plot.js', import.meta.url), 'utf8');
+const plot = vm.runInNewContext(`${source}\nClosenessPlot`);
+
+test('an abrupt exit after decades does not fade earlier relationship history', () => {
+  for (const side of [-1, 1]) {
+    const points = [[0, side * .8], [10, side * .1], [49.9, side * .1], [50, side]];
+    assert.equal(plot.fadeStartAge(points), 49.9);
+  }
+});
+
+test('the final segment controls fade timing even after multiple outward edits', () => {
+  assert.equal(plot.fadeStartAge([[0, .1], [10, .3], [20, .7], [25, 1]]), 20);
+  assert.equal(plot.fadeStartAge([[0, .1], [20, .1], [25, .1]]), 20);
+  assert.equal(plot.fadeStartAge([[5, .1]]), 5);
+});
