@@ -53,6 +53,7 @@ svg{display:block;width:100%;height:680px;touch-action:pan-y;user-select:none}
 .hit,.handle{touch-action:none}
 .hit{stroke:transparent;stroke-width:22;fill:none;pointer-events:stroke;cursor:grab}
 .line-tooltip{position:fixed;z-index:5;max-width:230px;padding:6px 9px;background:var(--paper);border:1px solid var(--rule);border-radius:2px;box-shadow:0 2px 8px #24241f12;pointer-events:none;font:600 .76rem/1.4 var(--ui)}
+#tagline{width:min(100%,560px);min-height:4.5em;resize:vertical}
 .handle{cursor:grab}
 .handle:focus-visible{outline:none}
 .handle:focus-visible .knob{stroke:var(--accent);stroke-width:3}
@@ -181,7 +182,8 @@ dialog .fields{justify-content:end;padding-top:4px}
     <button type="button" class="primary" id="share" disabled>Share</button>
     <button type="button" id="editing-link" disabled>Editing link</button>
   </div>
-  <p class="fine">Share adds a version without names to the public Gallery. Relationship types stay visible. Anyone with the editing link can change this timeline.</p>
+  <p class="fine">Shared timelines with at least two relationships appear in the public Gallery without names. Relationship types stay visible. Anyone with the editing link can change this timeline.</p>
+  <label for="tagline"><span class="label">Public tagline · optional</span><textarea id="tagline" rows="2" maxlength="180" placeholder="One or two lines about this life"></textarea></label>
   <p class="fine" id="share-state"></p>
   <p class="fine" id="share-result" role="status" aria-live="polite"></p>
   <dl id="timeline-links" class="link-list" hidden></dl>
@@ -236,7 +238,8 @@ const ageText = age => `Age ${wholeAge(age)}`;
 const yearInRange = (year, min, max) => Number.isInteger(year) && year >= min && year <= max;
 $('birth').max = currentYear;
 const horizon = model => model.birthYear === null ? 0 : (model.endYear ?? currentYear) - model.birthYear;
-const empty = () => ({ version: 2, birthYear: null, endMode: 'now', endYear: null, relationships: [] });
+const normalizeTagline = value => String(value ?? '').replace(/\r\n?/g, '\n').split('\n').slice(0, 2).join('\n').slice(0, 180);
+const empty = () => ({ version: 2, birthYear: null, endMode: 'now', endYear: null, tagline: '', relationships: [] });
 let data = empty();
 let selected = null;
 let history = [];
@@ -286,7 +289,7 @@ function validate(value) {
   if (endMode === 'future' && !yearInRange(endYear, birthYear, birthYear + maxAge)) bad();
   if (endMode === 'death' && !yearInRange(endYear, birthYear, currentYear)) bad();
   const legacyFuture = endMode === 'future';
-  const model = { ...empty(), birthYear, endMode: legacyFuture ? 'now' : endMode, endYear: legacyFuture ? null : endYear };
+  const model = { ...empty(), birthYear, endMode: legacyFuture ? 'now' : endMode, endYear: legacyFuture ? null : endYear, tagline: normalizeTagline(value.tagline) };
   const ids = new Set();
   const max = horizon(model);
   const originalMax = legacyFuture ? endYear - birthYear : max;
@@ -581,6 +584,8 @@ function render() {
   const started = data.birthYear !== null;
   $('birth').value = data.birthYear ?? '';
   $('birth').disabled = editUnavailable;
+  if ($('tagline').value !== data.tagline) $('tagline').value = data.tagline;
+  $('tagline').disabled = editUnavailable;
   $('save').disabled = !started;
   $('undo').disabled = !history.length;
   document.querySelector('.tools').inert = loadingEdit || saving;
@@ -1052,6 +1057,14 @@ async function loadEditingLink() {
 
 $('share').addEventListener('click', () => saveLink(true));
 $('editing-link').addEventListener('click', () => saveLink(false));
+$('tagline').addEventListener('input', event => {
+  const next = normalizeTagline(event.target.value);
+  if (event.target.value !== next) event.target.value = next;
+  if (data.tagline === next) return;
+  remember();
+  data.tagline = next;
+  commit();
+});
 window.addEventListener('beforeunload', event => {
   const detachedUnsaved = !keepLocalDraft && !remote && data.birthYear !== null;
   if (!hasUnsavedChanges() && !detachedUnsaved) return;

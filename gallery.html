@@ -32,6 +32,8 @@ input{width:76px}
 .timeline-card:hover{border-color:var(--ink)}
 .timeline-card svg{display:block;width:100%;height:auto;background:#f0ebdf}
 .timeline-card span{display:block;margin:5px 3px 1px}
+.timeline-card .tagline{margin:8px 3px 3px;color:var(--muted);font:400 .95rem/1.35 var(--serif);white-space:pre-line}
+.timeline-card .created{margin:7px 3px 2px;color:var(--muted);font:500 .66rem/1.4 var(--ui);letter-spacing:.08em;text-transform:uppercase}
 .line-tooltip{position:fixed;z-index:5;max-width:230px;padding:6px 9px;background:var(--paper);border:1px solid var(--rule);border-radius:2px;box-shadow:0 2px 8px #24241f12;pointer-events:none;font:600 .76rem/1.4 var(--ui)}
 #more{margin-bottom:24px}
 [hidden]{display:none!important}
@@ -88,6 +90,12 @@ document.addEventListener('keydown', event => {
 let filters = {};
 let nextCursor;
 let activeRequest;
+const formatCreated = value => {
+  const date = typeof value === 'string' ? new Date(value) : null;
+  return date && Number.isFinite(date.getTime())
+    ? new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'long', year: 'numeric' }).format(date)
+    : '';
+};
 
 function addCard(item) {
   if (!ClosenessAPI.validId(item.publicId)) return;
@@ -101,6 +109,19 @@ function addCard(item) {
   label.className = 'label';
   label.textContent = `Age ${item.age}`;
   link.append(plot, label);
+  if (item.tagline) {
+    const tagline = document.createElement('span');
+    tagline.className = 'tagline';
+    tagline.textContent = item.tagline;
+    link.append(tagline);
+  }
+  const created = formatCreated(item.createdAt);
+  if (created) {
+    const createdLabel = document.createElement('span');
+    createdLabel.className = 'created';
+    createdLabel.textContent = `Created ${created}`;
+    link.append(createdLabel);
+  }
   row.append(link);
   items.append(row);
 }
