@@ -1,5 +1,5 @@
 const categories = {
-  family: ['Family member', 'Parent', 'Mum', 'Mom', 'Dad', 'Sibling', 'Brother', 'Sister', 'Child', 'Grandparent', 'Extended family'],
+  family: ['Family member', 'Parent', 'Mum', 'Mom', 'Dad', 'Sibling', 'Brother', 'Sister', 'Child', 'Grandchild', 'Grandparent', 'Extended family'],
   friends: ['Friend', 'Childhood friend', 'School friend', 'University friend', 'Close friend', 'Neighbor', 'Friend group'],
   romance: ['Partner', 'Spouse', 'Dating', 'Fling'],
   work: ['Colleague', 'Mentor', 'Work friend', 'Team'],
