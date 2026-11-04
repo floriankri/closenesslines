@@ -11,8 +11,11 @@ const publicTypes = new Set([
   'Oldest child', 'Middle child', 'Youngest child'
 ]);
 const endings = new Set(['ongoing', 'fade', 'death']);
-// This palette is assigned by line position, independently of relationship metadata.
-const colors = ['#a74336', '#357267', '#5c598e', '#8a651d', '#486d90', '#9a4e73', '#626e45', '#90563e'];
+// Match the editor and named viewer, regardless of relationship order.
+const categoryColors = { family: '#4f6e85', friends: '#3e725f', romance: '#9c4c59', work: '#846629', pets: '#765f8d' };
+const typeColors = new Map(Object.entries(categories).flatMap(([category, types]) =>
+  types.map(type => [type, categoryColors[category]])));
+for (const type of publicTypes) if (!typeColors.has(type)) typeColors.set(type, categoryColors.family);
 const maxAge = 200;
 const maxBodyBytes = 1024 * 1024;
 const pageSize = 12;
@@ -115,8 +118,8 @@ function normalizeTimeline(input, nowDate) {
     age,
     duration,
     timeline: { version: 2, birthYear, birthMonth, endMode, endYear, duration, tagline: tagline.replace(/\r\n?/g, '\n').trim(), relationships },
-    lines: relationships.map((track, index) => ({
-      color: colors[index % colors.length],
+    lines: relationships.map(track => ({
+      color: categoryColors[track.category],
       type: publicType(track, relationships),
       ending: track.ending,
       points: track.points
@@ -137,8 +140,8 @@ function saveResponse(record, editId) {
 }
 
 function publicGeometry(record) {
-  const lines = record.lines.map(({ color, type, ending, points }) => ({
-    color, type: publicTypes.has(type) ? type : 'Relationship', ending,
+  const lines = record.lines.map(({ type, ending, points }) => ({
+    color: typeColors.get(type) ?? '#24241f', type: publicTypes.has(type) ? type : 'Relationship', ending,
     points: points.map(([age, distance]) => [age, distance])
   }));
   const duration = record.duration === null || record.duration === undefined

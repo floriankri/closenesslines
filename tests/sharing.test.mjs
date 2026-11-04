@@ -25,6 +25,13 @@ const timeline = {
   ]
 };
 const normalizedTimeline = { ...timeline, birthMonth: null, duration: 35 };
+const categoryColors = {
+  family: '#4f6e85',
+  friends: '#3e725f',
+  romance: '#9c4c59',
+  work: '#846629',
+  pets: '#765f8d'
+};
 
 async function testServer(t, options = {}) {
   const dataDir = await mkdtemp(join(tmpdir(), 'closeness-lines-test-'));
@@ -95,6 +102,10 @@ test('distinct links expose only their intended data, with public preset types a
     assert.equal(line.ending, timeline.relationships[index].ending);
     assert.deepEqual(line.points, timeline.relationships[index].points);
   }
+  assert.deepEqual(publicLink.json.lines.map(line => line.color), [
+    categoryColors.family, categoryColors.family, categoryColors.family,
+    categoryColors.family, categoryColors.family, categoryColors.friends
+  ]);
   const gallery = await request('/api/gallery');
   assert.deepEqual(gallery.json, { items: [{ publicId, age: 35, duration: 35, createdAt: saved.createdAt, tagline: '', lines: publicLink.json.lines }] });
   for (const result of [publicLink, gallery]) {
@@ -111,6 +122,41 @@ test('distinct links expose only their intended data, with public preset types a
   } finally {
     db.close();
   }
+});
+
+test('public colors follow relationship categories rather than line position', async t => {
+  const { request, save, dataDir } = await testServer(t);
+  const input = structuredClone(timeline);
+  input.relationships = [
+    { ...input.relationships[5], id: 'romance-track', category: 'romance', subtype: 'Dating' },
+    { ...input.relationships[0], id: 'family-track' },
+    { ...input.relationships[1], id: 'work-track', category: 'work', subtype: 'Work friend' },
+    { ...input.relationships[2], id: 'pet-track', category: 'pets', subtype: 'Dog' }
+  ];
+  const saved = await save(input);
+  const expected = {
+    Dating: categoryColors.romance,
+    Mum: categoryColors.family,
+    'Work friend': categoryColors.work,
+    Dog: categoryColors.pets
+  };
+  const publicLink = await request('/api/timelines/' + saved.publicId);
+  assert.deepEqual(Object.fromEntries(publicLink.json.lines.map(line => [line.type, line.color])), expected);
+
+  // A legacy row may still contain the former position-based colors. Public
+  // projections must normalize it so old shared links match new timelines.
+  const db = new DatabaseSync(join(dataDir, 'timelines.sqlite'));
+  try {
+    const wrongColors = publicLink.json.lines.map(line => ({ ...line, color: '#000000' }));
+    db.prepare('UPDATE timelines SET lines = ? WHERE public_id = ?').run(JSON.stringify(wrongColors), saved.publicId);
+  } finally {
+    db.close();
+  }
+  const corrected = await request('/api/timelines/' + saved.publicId);
+  assert.deepEqual(Object.fromEntries(corrected.json.lines.map(line => [line.type, line.color])), expected);
+  const gallery = await request('/api/gallery');
+  const card = gallery.json.items.find(item => item.publicId === saved.publicId);
+  assert.deepEqual(Object.fromEntries(card.lines.map(line => [line.type, line.color])), expected);
 });
 
 test('unpublished timelines stay out of public routes and gallery; only the edit link can change publication', async t => {
