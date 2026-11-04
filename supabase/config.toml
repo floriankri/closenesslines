@@ -1,0 +1,5 @@
+project_id = "closeness-lines"
+
+[functions.closeness-lines]
+verify_jwt = false
+entrypoint = "./functions/closeness-lines/index.mjs"
