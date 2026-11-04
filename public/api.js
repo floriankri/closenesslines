@@ -28,7 +28,7 @@ const ClosenessAPI = (() => {
     }
     const payload = await response.json().catch(() => null);
     if (response.status === 409) {
-      throw new Error('A newer version was saved through this editing link. Export your changes before reloading.');
+      throw new Error('A newer version was saved through this editing link. Your changes in this tab have not been saved.');
     }
     if (response.status === 404 && path.startsWith('/timelines/') && payload) {
       throw new Error('This timeline link could not be found.');

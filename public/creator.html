@@ -135,7 +135,6 @@ dialog .fields{justify-content:end;padding-top:4px}
   <div class="actions">
     <button type="button" id="undo" disabled>Undo</button>
     <button type="button" id="load">Import</button>
-    <button type="button" id="save" disabled>Export</button>
     <input type="file" id="file" accept=".json,application/json" hidden>
   </div>
 </div>
@@ -341,7 +340,7 @@ function storeDraft(message = '') {
     localStorage.setItem(storageKey, JSON.stringify(data));
     status(message || (data.birthYear !== null ? 'Draft saved in this browser.' : 'Start with a birth year.'));
   } catch {
-    status(message ? `${message} Browser storage is unavailable; export JSON to save a copy.` : 'Browser storage is unavailable; export JSON to save a copy.');
+    status(message ? `${message} Browser storage is unavailable. Use Editing link to save your timeline.` : 'Browser storage is unavailable. Use Editing link to save your timeline.');
   }
 }
 function remember(before = data, selection = selected) {
@@ -588,7 +587,6 @@ function render() {
   $('birth').disabled = editUnavailable;
   if ($('tagline').value !== data.tagline) $('tagline').value = data.tagline;
   $('tagline').disabled = editUnavailable;
-  $('save').disabled = !started;
   $('undo').disabled = !history.length;
   document.querySelector('.tools').inert = loadingEdit || saving;
   document.querySelector('.workspace').inert = editUnavailable || saving;
@@ -872,19 +870,6 @@ $('file').addEventListener('change', async () => {
   } catch (error) {
     status(error instanceof SyntaxError ? 'This file does not contain valid JSON.' : error.message, true);
   }
-});
-$('save').addEventListener('click', () => {
-  if (data.birthYear === null) return;
-  const file = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
-  const link = document.createElement('a');
-  const url = URL.createObjectURL(file);
-  link.href = url;
-  link.download = 'the-people-we-keep-timeline.json';
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  status('Timeline exported as JSON.');
 });
 function syncEditingURL() {
   const url = remote ? ClosenessAPI.timelineURL(remote.editId) : ClosenessAPI.pageURL('creator.html');
