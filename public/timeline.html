@@ -123,7 +123,7 @@ async function openTimeline() {
     createdLabel.hidden = !createdText;
     let selected = null;
     const buttons = [];
-    const draw = () => ClosenessPlot.render(plot, { age: result.age, lines, ending, selected, tooltip });
+    const draw = () => ClosenessPlot.render(plot, { age: result.age, duration: result.duration ?? result.timeline?.duration ?? result.age, lines, ending, selected, tooltip });
     lines.forEach((line, index) => {
       const item = document.createElement('li');
       const button = document.createElement('button');

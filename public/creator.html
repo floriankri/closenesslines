@@ -33,11 +33,14 @@ h2{font-size:1.65rem;font-weight:400;line-height:1.12;letter-spacing:-.03em;over
 .fields input[type="number"]{width:90px}
 #status{min-height:2.25em;padding:7px 0;font:500 .77rem/1.45 var(--ui);color:var(--muted)}
 #status.error,.danger{color:var(--accent)}
-.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,260px);border-top:1px solid var(--ink)}
+.tools,#status,.workspace,.sharing{max-width:840px;margin-inline:auto}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,240px);border-top:1px solid var(--ink)}
 .board{min-width:0}
 .axis-key{position:sticky;top:0;z-index:2;background:var(--paper);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px;border-bottom:1px solid var(--rule);padding:9px 8px;color:var(--muted)}
 .axis-key strong{background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:2px}
 .plot{position:relative;min-height:680px}
+.scale-control{display:none}
+@media(min-width:681px) and (pointer:fine){svg#plot{height:var(--plot-height,680px)}.scale-control{display:grid;grid-template-columns:auto minmax(80px,1fr) 2.5em;align-items:center;gap:14px;padding:14px 8px;border-top:1px solid var(--rule);font:500 .75rem/1.4 var(--ui);color:var(--muted)}.scale-control input{width:100%;accent-color:var(--accent);min-height:32px}.scale-control output{text-align:right}}
 svg{display:block;width:100%;height:680px;touch-action:pan-y;user-select:none}
 .grid{stroke:var(--rule);stroke-width:1}
 .side{stroke:var(--rule);stroke-width:1;stroke-dasharray:3 5;opacity:.8}
@@ -131,6 +134,7 @@ dialog .fields{justify-content:end;padding-top:4px}
 <div class="tools">
   <div class="fields">
     <label><span class="label">Birth year</span><input id="birth" type="number" inputmode="numeric" min="1900" step="1" placeholder="YYYY" required></label>
+    <label><span class="label">Birth month · optional</span><select id="birth-month"><option value="">Not set</option><option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select></label>
   </div>
   <div class="actions">
     <button type="button" id="undo" disabled>Undo</button>
@@ -147,6 +151,7 @@ dialog .fields{justify-content:end;padding-top:4px}
       <div class="line-tooltip" id="line-tooltip" role="tooltip" hidden></div>
       <div class="hint" id="hint"></div>
     </div>
+    <div class="scale-control"><label for="timeline-height">Timeline length</label><input id="timeline-height" type="range" min="680" max="2720" step="40" value="680" aria-valuetext="Standard length"><output id="height-value" for="timeline-height">1×</output></div>
   </section>
   <aside class="sidebar">
     <section class="editor" id="editor" hidden aria-label="Selected relationship">
@@ -174,7 +179,7 @@ dialog .fields{justify-content:end;padding-top:4px}
       <p id="plot-help">Tap blank space to start a relationship. Drag its line to add a point. Drag a point to move it, or tap an inside point to remove it.</p>
       <p>Drag the end earlier or toward either outer edge to fade it. Choose <em>Death</em> to end it with a red ring. A line can move to either side; only its distance from you matters.</p>
       <p>With a point focused, use the arrow keys to move it or Delete to remove an inside point.</p>
-      <p>Ages are approximate from birth year.</p>
+      <p>Add a birth month for a more precise position of Now.</p>
     </details>
   </aside>
 </div>
@@ -228,7 +233,10 @@ const categories = {
 };
 const endings = new Set(['ongoing', 'fade', 'death']);
 const minBirth = 1900;
-const currentYear = new Date().getFullYear();
+const currentDate = new Date();
+const currentYear = currentDate.getUTCFullYear();
+const currentMonth = currentDate.getUTCMonth() + 1;
+const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const maxAge = 200;
 const gap = .001;
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
@@ -238,9 +246,9 @@ const wholeAge = Math.floor;
 const ageText = age => `Age ${wholeAge(age)}`;
 const yearInRange = (year, min, max) => Number.isInteger(year) && year >= min && year <= max;
 $('birth').max = currentYear;
-const horizon = model => model.birthYear === null ? 0 : (model.endYear ?? currentYear) - model.birthYear;
+const horizon = model => model.birthYear === null ? 0 : model.endMode === 'death' || !model.birthMonth ? (model.endYear ?? currentYear) - model.birthYear : round(((currentYear - model.birthYear) * 12 + currentMonth - model.birthMonth) / 12);
 const normalizeTagline = value => String(value ?? '').replace(/\r\n?/g, '\n').split('\n').slice(0, 2).join('\n').slice(0, 180);
-const empty = () => ({ version: 2, birthYear: null, endMode: 'now', endYear: null, tagline: '', relationships: [] });
+const empty = () => ({ version: 2, birthYear: null, birthMonth: null, endMode: 'now', endYear: null, tagline: '', relationships: [] });
 let data = empty();
 let selected = null;
 let history = [];
@@ -285,12 +293,15 @@ function validate(value) {
       !['now', 'future', 'death'].includes(value.endMode) ||
       !Array.isArray(value.relationships) || value.relationships.length > 100) bad();
   const { birthYear, endMode, endYear } = value;
+  const birthMonth = value.birthMonth ?? null;
+  if (birthMonth !== null && !yearInRange(birthMonth, 1, 12)) bad();
+  if (birthYear === currentYear && birthMonth > currentMonth) bad('Birth month cannot be in the future.');
   if (endMode === 'now' && endYear !== null) bad();
   if (birthYear === null && (endMode !== 'now' || value.relationships.length)) bad();
   if (endMode === 'future' && !yearInRange(endYear, birthYear, birthYear + maxAge)) bad();
   if (endMode === 'death' && !yearInRange(endYear, birthYear, currentYear)) bad();
   const legacyFuture = endMode === 'future';
-  const model = { ...empty(), birthYear, endMode: legacyFuture ? 'now' : endMode, endYear: legacyFuture ? null : endYear, tagline: normalizeTagline(value.tagline) };
+  const model = { ...empty(), birthYear, birthMonth, endMode: legacyFuture ? 'now' : endMode, endYear: legacyFuture ? null : endYear, tagline: normalizeTagline(value.tagline) };
   const ids = new Set();
   const max = horizon(model);
   const originalMax = legacyFuture ? endYear - birthYear : max;
@@ -375,10 +386,12 @@ try {
 } catch {
   status('The saved draft could not be loaded. You can start a timeline or import a JSON copy.');
 }
-function reviseTimeline(birthYear) {
+function reviseTimeline(birthYear, birthMonth = data.birthMonth) {
   const next = clone(data);
   next.birthYear = birthYear;
+  next.birthMonth = birthMonth;
   const max = horizon(next);
+  if (max < 0) return false;
   for (const track of next.relationships) {
     const points = track.points;
     if (track.ending === 'ongoing') {
@@ -421,6 +434,26 @@ $('birth').addEventListener('change', () => {
   }
 });
 
+$('birth-month').addEventListener('change', () => {
+  const month = $('birth-month').value === '' ? null : Number($('birth-month').value);
+  if (month === data.birthMonth) return;
+  if (!reviseTimeline(data.birthYear, month)) {
+    render();
+    status('That birth month would put birth in the future or leave existing points beyond Now.', true);
+  }
+});
+$('timeline-height').addEventListener('input', event => {
+  const slider = event.target;
+  const before = slider.getBoundingClientRect().top;
+  const height = Number(slider.value);
+  document.querySelector('.board').style.setProperty('--plot-height', `${height}px`);
+  const scale = `${Number((height / 680).toFixed(1))}×`;
+  $('height-value').textContent = scale;
+  slider.setAttribute('aria-valuetext', `${scale} standard length`);
+  renderPlot();
+  window.scrollBy(0, slider.getBoundingClientRect().top - before);
+});
+
 function element(tag, attributes, value) {
   const node = document.createElementNS(ns, tag);
   for (const [key, val] of Object.entries(attributes)) node.setAttribute(key, val);
@@ -461,7 +494,7 @@ function renderPlot(restoreFocus) {
   const x = distance => mid + spread * distance;
   const y = age => max ? top + (bottom - top) * age / max : top;
   const ended = data.endMode === 'death';
-  const nowAge = data.birthYear === null || ended ? null : currentYear - data.birthYear;
+  const nowAge = data.birthYear === null || ended ? null : max;
   const nowY = nowAge === null ? null : y(nowAge);
   const endY = y(max);
   chart = { top, bottom, max, x, y, mid, spread };
@@ -469,9 +502,9 @@ function renderPlot(restoreFocus) {
   const fragment = document.createDocumentFragment();
   const defs = element('defs', {});
   fragment.append(defs);
-  const step = max > 110 ? 20 : max > 50 ? 10 : max > 20 ? 5 : max > 9 ? 2 : 1;
+  const step = [1, 2, 5, 10, 20].find(value => !max || (bottom - top) * value / max >= 32) ?? 20;
   const ticks = [0];
-  const previousAge = nowAge > 1 ? nowAge - 1 : null;
+  const previousAge = nowAge > 1 ? (Number.isInteger(nowAge) ? nowAge - 1 : Math.floor(nowAge)) : null;
   for (let age = step; age < max; age += step) {
     if (endY - y(age) <= 21 || (nowY !== null && Math.abs(nowY - y(age)) <= 21)) continue;
     if (previousAge !== null && Math.abs(y(previousAge) - y(age)) <= 14) continue;
@@ -550,7 +583,7 @@ function renderPlot(restoreFocus) {
     const label = age === 0 ? 'Birth' : ageText(age);
     fragment.append(element('text', { x: 8, y: y(age) - 6, class: 'tick', 'pointer-events': 'none' }, label));
     if (data.birthYear !== null && !(ended && age === max) && !(nowY !== null && age === nowAge)) {
-      fragment.append(element('text', { x: width - 8, y: y(age) - 6, class: 'tick', 'text-anchor': 'end', 'pointer-events': 'none' }, String(data.birthYear + age)));
+      fragment.append(element('text', { x: width - 8, y: y(age) - 6, class: 'tick', 'text-anchor': 'end', 'pointer-events': 'none' }, `${data.birthMonth ? monthNames[data.birthMonth - 1] + ' ' : ''}${data.birthYear + age}`));
     }
   }
   if (nowY !== null) {
@@ -585,6 +618,8 @@ function render() {
   const started = data.birthYear !== null;
   $('birth').value = data.birthYear ?? '';
   $('birth').disabled = editUnavailable;
+  $('birth-month').value = data.birthMonth ?? '';
+  $('birth-month').disabled = editUnavailable;
   if ($('tagline').value !== data.tagline) $('tagline').value = data.tagline;
   $('tagline').disabled = editUnavailable;
   $('undo').disabled = !history.length;
