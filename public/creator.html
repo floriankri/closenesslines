@@ -236,7 +236,6 @@ const minBirth = 1900;
 const currentDate = new Date();
 const currentYear = currentDate.getUTCFullYear();
 const currentMonth = currentDate.getUTCMonth() + 1;
-const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const maxAge = 200;
 const gap = .001;
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
@@ -512,8 +511,25 @@ function renderPlot(restoreFocus) {
   }
   if (previousAge !== null) ticks.push(previousAge);
   if (max && ended) ticks.push(max);
+  const calendarTicks = [];
+  if (data.birthYear !== null) {
+    const monthOffset = ((data.birthMonth ?? 1) - 1) / 12;
+    const finalYear = data.birthYear + max + monthOffset;
+    for (let year = data.birthYear; year <= Math.floor(finalYear); year++) {
+      const age = round(year - data.birthYear - monthOffset);
+      if (age < 0 || age > max || year % step !== 0) continue;
+      if (max && endY - y(age) <= 21) continue;
+      calendarTicks.push({ year, age });
+    }
+  }
+  // Calendar grid lines start at January on the right; birthday ages have
+  // separate short ticks on the left when a birth month is supplied.
+  fragment.append(element('line', { x1: 8, x2: width - 8, y1: top, y2: top, class: 'grid' }));
+  for (const { age } of calendarTicks) {
+    if (age !== 0) fragment.append(element('line', { x1: 8, x2: width - 8, y1: y(age), y2: y(age), class: 'grid' }));
+  }
   for (const age of ticks) {
-    fragment.append(element('line', { x1: 8, x2: width - 8, y1: y(age), y2: y(age), class: 'grid' }));
+    fragment.append(element('line', { x1: 8, x2: 18, y1: y(age), y2: y(age), class: 'grid' }));
   }
   for (const distance of [-1, -.5, .5, 1]) {
     fragment.append(element('line', { x1: x(distance), x2: x(distance), y1: top, y2: endY, class: 'side' }));
@@ -582,9 +598,9 @@ function renderPlot(restoreFocus) {
   for (const age of ticks) {
     const label = age === 0 ? 'Birth' : ageText(age);
     fragment.append(element('text', { x: 8, y: y(age) - 6, class: 'tick', 'pointer-events': 'none' }, label));
-    if (data.birthYear !== null && !(ended && age === max) && !(nowY !== null && age === nowAge)) {
-      fragment.append(element('text', { x: width - 8, y: y(age) - 6, class: 'tick', 'text-anchor': 'end', 'pointer-events': 'none' }, `${data.birthMonth ? monthNames[data.birthMonth - 1] + ' ' : ''}${data.birthYear + age}`));
-    }
+  }
+  for (const { year, age } of calendarTicks) {
+    fragment.append(element('text', { x: width - 8, y: y(age) - 6, class: 'tick', 'text-anchor': 'end', 'pointer-events': 'none' }, `Jan ${year}`));
   }
   if (nowY !== null) {
     fragment.append(element('text', { x: width - 8, y: nowY - 6, class: 'tick end-label', 'text-anchor': 'end', 'pointer-events': 'none' }, `Now · ${currentYear}`));
