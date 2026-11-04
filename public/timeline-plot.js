@@ -92,7 +92,7 @@ const ClosenessPlot = (() => {
 
   function render(svg, { age, duration = age, lines, ending = 'snapshot', selected = null, preview = false, tooltip = null }) {
     const width = preview ? 250 : svg.clientWidth || 600;
-    const height = preview ? 170 : svg.clientHeight || 680;
+    const height = preview ? 300 : svg.clientHeight || 680;
     const mid = width / 2;
     const top = preview ? 13 : 30;
     const span = Number.isFinite(Number(duration)) ? Number(duration) : age;
