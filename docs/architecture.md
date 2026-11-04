@@ -33,3 +33,9 @@ The gallery is a database-ranked public projection. It excludes timelines with f
 ## Persistence and deployment
 
 The static client is built from `public/` into `dist/` for GitHub Pages. The Pages workflow publishes only `dist/`. Supabase migrations and Edge Function deploys are separate operational changes and should be reviewed independently from frontend changes.
+
+## Timeline scale and dates
+
+Birth month is optional and private. When provided, the current horizon uses elapsed whole months, rounded to three decimal years internally; no day is collected. Public age filters remain whole-year ages, while a derived duration keeps the geometry accurate. Year-only timelines retain their previous calculation. Death timelines remain approximate to the supplied end year.
+
+The creator's desktop length slider changes only rendering height, from680 to2720px. It does not alter saved points or timeline dates. Grid spacing follows available pixels per year; mobile retains its compact graph and hides the slider.

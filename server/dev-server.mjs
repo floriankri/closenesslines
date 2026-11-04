@@ -56,31 +56,31 @@ function openLocalStore(directory) {
     SELECT public_id, view_id, timeline, age, published, revision, created_at FROM timelines WHERE edit_hash = ?
   `);
   const view = db.prepare('SELECT timeline, age, created_at FROM timelines WHERE view_id = ?');
-  const publicTimeline = db.prepare("SELECT lines, age, created_at, json_extract(timeline, '$.tagline') AS tagline FROM timelines WHERE public_id = ? AND published = 1");
+  const publicTimeline = db.prepare("SELECT lines, age, created_at, json_extract(timeline, '$.duration') AS duration, json_extract(timeline, '$.tagline') AS tagline FROM timelines WHERE public_id = ? AND published = 1");
   const update = db.prepare(`
     UPDATE timelines SET timeline = ?, lines = ?, age = ?, published = ?, revision = ?
     WHERE edit_hash = ? AND revision = ?
   `);
   const gallery = db.prepare(`
     WITH ranked AS (
-      SELECT public_id, age, created_at, lines, json_extract(timeline, '$.tagline') AS tagline,
+      SELECT public_id, age, created_at, json_extract(timeline, '$.duration') AS duration, lines, json_extract(timeline, '$.tagline') AS tagline,
         json_array_length(lines) AS line_count,
         COALESCE((SELECT SUM(json_array_length(json_extract(value, '$.points'))) FROM json_each(lines)), 0) AS point_count
       FROM timelines WHERE published = 1 AND age BETWEEN ? AND ?
     )
-    SELECT public_id, age, created_at, lines, tagline FROM ranked
+    SELECT public_id, age, created_at, duration, lines, tagline FROM ranked
     WHERE line_count >= 2
     ORDER BY line_count DESC, point_count DESC, public_id ASC
     LIMIT ?
   `);
   const galleryAfter = db.prepare(`
     WITH ranked AS (
-      SELECT public_id, age, created_at, lines, json_extract(timeline, '$.tagline') AS tagline,
+      SELECT public_id, age, created_at, json_extract(timeline, '$.duration') AS duration, lines, json_extract(timeline, '$.tagline') AS tagline,
         json_array_length(lines) AS line_count,
         COALESCE((SELECT SUM(json_array_length(json_extract(value, '$.points'))) FROM json_each(lines)), 0) AS point_count
       FROM timelines WHERE published = 1 AND age BETWEEN ? AND ?
     )
-    SELECT public_id, age, created_at, lines, tagline FROM ranked
+    SELECT public_id, age, created_at, duration, lines, tagline FROM ranked
     WHERE line_count >= 2 AND (
       line_count < ? OR (line_count = ? AND point_count < ?) OR
       (line_count = ? AND point_count = ? AND public_id > ?)
@@ -183,11 +183,11 @@ async function serve(request, response, server, api, backend) {
   response.end(request.method === 'HEAD' ? undefined : body ?? 'Page not found.');
 }
 
-export function createDevServer({ backend = process.env.CLOSENESS_BACKEND ?? 'local', dataDir = process.env.CLOSENESS_DATA_DIR ??
+export function createDevServer({ backend = process.env.CLOSENESS_BACKEND ?? 'local', now, dataDir = process.env.CLOSENESS_DATA_DIR ??
     join(tmpdir(), `closeness-lines-${process.getuid()}`) } = {}) {
   if (!['local', 'hosted'].includes(backend)) throw new Error('Invalid backend mode.');
   const store = openLocalStore(dataDir);
-  const api = createSharingHandler(store, { onError: () => console.error('Sharing request failed.') });
+  const api = createSharingHandler(store, { now, onError: () => console.error('Sharing request failed.') });
   const server = createServer((request, response) => {
     serve(request, response, server, api, backend).catch(() => {
       if (!response.headersSent) response.writeHead(500);

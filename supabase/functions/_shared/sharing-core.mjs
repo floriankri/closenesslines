@@ -59,18 +59,26 @@ function publicType(track, relationships) {
   return later ? 'Middle child' : 'Youngest child';
 }
 
-function normalizeTimeline(input, year) {
+function normalizeTimeline(input, nowDate) {
+  const year = nowDate.getUTCFullYear();
+  const month = nowDate.getUTCMonth() + 1;
   if (!object(input) || input.version !== 2 || !integerIn(input.birthYear, 1900, year) ||
       !['now', 'death'].includes(input.endMode) || !Array.isArray(input.relationships) ||
       input.relationships.length < 1 || input.relationships.length > 100) throw invalid();
 
   const { birthYear, endMode, endYear } = input;
+  const birthMonth = input.birthMonth === undefined || input.birthMonth === null ? null : input.birthMonth;
+  if (birthMonth !== null && !integerIn(birthMonth, 1, 12)) throw invalid();
+  if (birthMonth !== null && birthYear === year && birthMonth > month) throw invalid();
   const tagline = input.tagline === undefined ? '' : input.tagline;
   if (typeof tagline !== 'string' || tagline.length > 180 || tagline.replace(/\r\n?/g, '\n').split('\n').length > 2) throw invalid();
   if (endMode === 'now' && endYear !== null) throw invalid();
   if (endMode === 'death' && !integerIn(endYear, birthYear, year)) throw invalid();
-  const age = (endYear ?? year) - birthYear;
-  if (!integerIn(age, 0, maxAge)) throw invalid();
+  const duration = endMode === 'now' && birthMonth !== null
+    ? Math.round((((year - birthYear) * 12 + month - birthMonth) / 12) * 1000) / 1000
+    : (endYear ?? year) - birthYear;
+  if (!Number.isFinite(duration) || duration < 0 || duration > maxAge) throw invalid();
+  const age = Math.floor(duration);
 
   const ids = new Set();
   const relationships = input.relationships.map(track => {
@@ -85,14 +93,14 @@ function normalizeTimeline(input, year) {
     const points = track.points.map(point => {
       if (!Array.isArray(point) || point.length !== 2) throw invalid();
       const [pointAge, distance] = point;
-      if (!precise(pointAge) || pointAge < 0 || pointAge <= previous || pointAge > age ||
-          !precise(distance) || Math.abs(distance) > 1) throw invalid();
+      if (!precise(pointAge) || pointAge < 0 || pointAge <= previous || pointAge > duration ||
+      !precise(distance) || Math.abs(distance) > 1) throw invalid();
       previous = pointAge;
       return [pointAge, distance];
     });
-    if (track.ending === 'ongoing' && previous < age) {
-      if (points.length === 1) points.push([age, points[0][1]]);
-      else points.at(-1)[0] = age;
+    if (track.ending === 'ongoing' && previous < duration) {
+      if (points.length === 1) points.push([duration, points[0][1]]);
+      else points.at(-1)[0] = duration;
     }
     return {
       id: track.id,
@@ -105,7 +113,8 @@ function normalizeTimeline(input, year) {
   });
   return {
     age,
-    timeline: { version: 2, birthYear, endMode, endYear, tagline: tagline.replace(/\r\n?/g, '\n').trim(), relationships },
+    duration,
+    timeline: { version: 2, birthYear, birthMonth, endMode, endYear, duration, tagline: tagline.replace(/\r\n?/g, '\n').trim(), relationships },
     lines: relationships.map((track, index) => ({
       color: colors[index % colors.length],
       type: publicType(track, relationships),
@@ -123,7 +132,7 @@ async function hashEditId(editId) {
 function saveResponse(record, editId) {
   return {
     editId, viewId: record.view_id, publicId: record.public_id,
-    revision: record.revision, age: record.age, published: record.published, createdAt: record.created_at ?? null
+    revision: record.revision, age: record.age, duration: record.duration ?? record.timeline?.duration ?? record.age, published: record.published, createdAt: record.created_at ?? null
   };
 }
 
@@ -132,7 +141,10 @@ function publicGeometry(record) {
     color, type: publicTypes.has(type) ? type : 'Relationship', ending,
     points: points.map(([age, distance]) => [age, distance])
   }));
-  return { age: record.age, createdAt: record.created_at ?? null, lines, tagline: typeof record.tagline === 'string' ? record.tagline : '' };
+  const duration = record.duration === null || record.duration === undefined
+    ? record.age
+    : (Number.isFinite(Number(record.duration)) ? Number(record.duration) : record.age);
+  return { age: record.age, duration, createdAt: record.created_at ?? null, lines, tagline: typeof record.tagline === 'string' ? record.tagline : '' };
 }
 
 async function readBody(request) {
@@ -225,7 +237,7 @@ export function createSharingHandler(store, { prefix = '/api', now = () => new D
     if (path === '/timelines' && request.method === 'POST') {
       const { timeline, publish } = await readBody(request);
       if (typeof publish !== 'boolean') throw invalid();
-      const data = normalizeTimeline(timeline, now().getUTCFullYear());
+      const data = normalizeTimeline(timeline, now());
       const [editId, viewId, publicId] = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];
       if (new Set([editId, viewId, publicId]).size !== 3) throw new Error('Identifier collision.');
       const record = {
@@ -247,7 +259,7 @@ export function createSharingHandler(store, { prefix = '/api', now = () => new D
       const { timeline, revision, publish } = await readBody(request);
       if (!integerIn(revision, 1, 2147483646) || (publish !== undefined && typeof publish !== 'boolean')) throw invalid();
       if (revision !== edit.revision) throw conflict();
-      const data = normalizeTimeline(timeline, now().getUTCFullYear());
+      const data = normalizeTimeline(timeline, now());
       const record = {
         ...edit, ...data,
         revision: revision + 1, published: publish ?? edit.published
@@ -258,12 +270,12 @@ export function createSharingHandler(store, { prefix = '/api', now = () => new D
 
     if (edit) {
       return json({
-        mode: 'edit', timeline: edit.timeline, age: edit.age, revision: edit.revision, published: edit.published,
+        mode: 'edit', timeline: edit.timeline, age: edit.age, duration: edit.duration ?? edit.timeline.duration ?? edit.age, revision: edit.revision, published: edit.published,
         links: { editId: id, viewId: edit.view_id, publicId: edit.public_id }
       });
     }
     const view = await store.findView(id);
-    if (view) return json({ mode: 'view', timeline: view.timeline, age: view.age, createdAt: view.created_at ?? null });
+    if (view) return json({ mode: 'view', timeline: view.timeline, age: view.age, duration: view.timeline.duration ?? view.age, createdAt: view.created_at ?? null });
     const publicRecord = await store.findPublic(id);
     if (publicRecord) return json({ mode: 'public', ...publicGeometry(publicRecord) });
     throw missing();

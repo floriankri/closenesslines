@@ -24,14 +24,15 @@ const timeline = {
     track('friend-original-id', privateSubtype, 8, 'friends')
   ]
 };
+const normalizedTimeline = { ...timeline, birthMonth: null, duration: 35 };
 
-async function testServer(t) {
+async function testServer(t, options = {}) {
   const dataDir = await mkdtemp(join(tmpdir(), 'closeness-lines-test-'));
   let server;
   let baseUrl;
   async function restart() {
     if (server?.listening) await new Promise(resolve => server.close(resolve));
-    server = createDevServer({ dataDir });
+    server = createDevServer({ dataDir, ...options });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     baseUrl = `http://127.0.0.1:${server.address().port}`;
   }
@@ -73,16 +74,16 @@ test('distinct links expose only their intended data, with public preset types a
 
   const edit = await request('/api/timelines/' + editId);
   assert.deepEqual(edit.json, {
-    mode: 'edit', timeline, links: { editId, viewId, publicId }, revision: 1, published: true, age: 35
+    mode: 'edit', timeline: normalizedTimeline, links: { editId, viewId, publicId }, revision: 1, published: true, age: 35, duration: 35
   });
   assert.equal(edit.response.headers.get('cache-control'), 'no-store');
   assert.equal(edit.response.headers.get('referrer-policy'), 'no-referrer');
   const view = await request('/api/timelines/' + viewId);
-  assert.deepEqual(view.json, { mode: 'view', timeline, age: 35, createdAt: saved.createdAt });
+  assert.deepEqual(view.json, { mode: 'view', timeline: normalizedTimeline, age: 35, duration: 35, createdAt: saved.createdAt });
   for (const id of [editId, viewId, publicId]) assert.ok(!view.content.includes(id));
 
   const publicLink = await request('/api/timelines/' + publicId);
-  assert.deepEqual(Object.keys(publicLink.json), ['mode', 'age', 'createdAt', 'lines', 'tagline']);
+  assert.deepEqual(Object.keys(publicLink.json), ['mode', 'age', 'duration', 'createdAt', 'lines', 'tagline']);
   assert.equal(publicLink.json.mode, 'public');
   assert.equal(publicLink.json.age, 35);
   assert.deepEqual(publicLink.json.lines.map(line => line.type), [
@@ -95,7 +96,7 @@ test('distinct links expose only their intended data, with public preset types a
     assert.deepEqual(line.points, timeline.relationships[index].points);
   }
   const gallery = await request('/api/gallery');
-  assert.deepEqual(gallery.json, { items: [{ publicId, age: 35, createdAt: saved.createdAt, tagline: '', lines: publicLink.json.lines }] });
+  assert.deepEqual(gallery.json, { items: [{ publicId, age: 35, duration: 35, createdAt: saved.createdAt, tagline: '', lines: publicLink.json.lines }] });
   for (const result of [publicLink, gallery]) {
     for (const value of [privateName, privateSubtype, 'birthYear', 'original-relationship-id', 'viewId', viewId, 'editId', editId]) {
       assert.ok(!result.content.includes(value), 'Private field in public response: ' + value);
@@ -127,7 +128,7 @@ test('unpublished timelines stay out of public routes and gallery; only the edit
   }
 
   const updated = await put(editId, { timeline, revision, publish: true });
-  assert.deepEqual(updated.json, { editId, viewId, publicId, revision: 2, age: 35, published: true, createdAt });
+  assert.deepEqual(updated.json, { editId, viewId, publicId, revision: 2, age: 35, duration: 35, published: true, createdAt });
   assert.equal((await get(publicId)).json.mode, 'public');
   const changed = structuredClone(timeline);
   changed.relationships[0].points[1][1] = -0.9;
@@ -252,6 +253,44 @@ test('taglines are public-safe, limited, and creation timestamps survive edits',
     });
     assert.equal(result.response.status, 400);
   }
+});
+
+test('birth month gives a precise current horizon without leaking it publicly', async t => {
+  const { request, save } = await testServer(t, { now: () => new Date('2026-11-04T12:00:00Z') });
+  const input = structuredClone(timeline);
+  input.birthYear = 1991;
+  input.birthMonth = 10;
+  input.relationships = [input.relationships[0], input.relationships[1]].map(track => ({
+    ...track, points: [[0, -.2], [34.9, .2]]
+  }));
+  const saved = await save(input);
+  assert.equal(saved.age, 35);
+  assert.equal(saved.duration, 35.083);
+  const named = await request('/api/timelines/' + saved.viewId);
+  assert.equal(named.json.duration, 35.083);
+  assert.equal(named.json.timeline.birthMonth, 10);
+  const publicView = await request('/api/timelines/' + saved.publicId);
+  assert.equal(publicView.json.duration, 35.083);
+  assert.ok(!publicView.content.includes('birthMonth'));
+
+  const preBirthday = structuredClone(input);
+  preBirthday.birthYear = 2025;
+  preBirthday.birthMonth = 12;
+  preBirthday.relationships = preBirthday.relationships.map(track => ({
+    ...track, points: [[0, 0], [.5, .2]]
+  }));
+  const beforeBirthday = await save(preBirthday);
+  assert.equal(beforeBirthday.age, 0);
+  assert.equal(beforeBirthday.duration, 0.917);
+
+  const currentYearBeforeBirthday = structuredClone(input);
+  currentYearBeforeBirthday.birthYear = 2026;
+  currentYearBeforeBirthday.birthMonth = 12;
+  currentYearBeforeBirthday.relationships = currentYearBeforeBirthday.relationships.map(track => ({
+    ...track, points: [[0, 0], [.5, .2]]
+  }));
+  const invalidBirth = await request('/api/timelines', { method: 'POST', body: { timeline: currentYearBeforeBirthday, publish: false } });
+  assert.equal(invalidBirth.response.status, 400);
 });
 
 test('gallery ranking remains ordered across the twelve-item page boundary', async t => {

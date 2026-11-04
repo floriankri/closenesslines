@@ -42,7 +42,8 @@ function createSupabaseStore(projectUrl, key, legacy) {
   return {
     consumeRateLimit,
     insert(record) {
-      return data({}, { method: 'POST', record, prefer: 'return=minimal' });
+      const { duration: _duration, ...stored } = record;
+      return data({}, { method: 'POST', record: stored, prefer: 'return=minimal' });
     },
     async findEdit(hash) {
       const [row] = await data({
@@ -62,7 +63,7 @@ function createSupabaseStore(projectUrl, key, legacy) {
       return response.json();
     },
     async findPublic(id) {
-      const [row] = await data({ select: 'age,created_at,lines,tagline:timeline->>tagline', public_id: `eq.${id}`, published: 'eq.true', limit: 1 });
+      const [row] = await data({ select: 'age,created_at,duration:timeline->>duration,lines,tagline:timeline->>tagline', public_id: `eq.${id}`, published: 'eq.true', limit: 1 });
       return row;
     },
     async update(hash, revision, { timeline, lines, age, published }) {

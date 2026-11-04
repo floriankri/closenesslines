@@ -74,15 +74,17 @@ const ClosenessPlot = (() => {
     defs.append(gradient, mask);
   }
 
-  function render(svg, { age, lines, ending = 'snapshot', selected = null, preview = false, tooltip = null }) {
+  function render(svg, { age, duration = age, lines, ending = 'snapshot', selected = null, preview = false, tooltip = null }) {
     const width = preview ? 250 : svg.clientWidth || 600;
     const height = preview ? 170 : svg.clientHeight || 680;
     const mid = width / 2;
     const top = preview ? 13 : 30;
-    const bottom = age ? height - (preview ? 13 : 31) : top;
+    const span = Number.isFinite(Number(duration)) ? Number(duration) : age;
+    const displayAge = Math.floor(span);
+    const bottom = span ? height - (preview ? 13 : 31) : top;
     const spread = mid - (preview ? 12 : 18);
     const x = distance => mid + spread * distance;
-    const y = value => age ? top + (bottom - top) * value / age : top;
+    const y = value => span ? top + (bottom - top) * value / span : top;
     const lineWidth = preview ? 1.4 : 2.1;
     const prefix = `plot-${++plotId}`;
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -97,16 +99,17 @@ const ClosenessPlot = (() => {
     const paper = preview ? '#f0ebdf' : 'var(--paper, #f7f4eb)';
     group.append(horizontalRule(0, rule));
     if (!preview) {
-      const step = age > 110 ? 20 : age > 50 ? 10 : age > 20 ? 5 : age > 9 ? 2 : 1;
-      for (let tick = step; tick < age && bottom - y(tick) > 20; tick += step) {
+      const pixelsPerYear = span ? (bottom - top) / span : 0;
+      const step = pixelsPerYear >= 32 ? 1 : pixelsPerYear >= 16 ? 2 : pixelsPerYear >= 8 ? 5 : pixelsPerYear >= 4 ? 10 : 20;
+      for (let tick = step; tick < span && bottom - y(tick) > 20; tick += step) {
         group.append(horizontalRule(tick, rule));
         text.append(node('text', { x: 8, y: y(tick) - 6 }, `Age ${tick}`));
       }
       text.append(node('text', { x: 8, y: top - 6 }, 'Birth'));
-      const endText = ending === 'now' ? `Now · Age ${age}` : ending === 'death' ? `Death · Age ${age}` : `Age ${age}`;
+      const endText = ending === 'now' ? `Now · Age ${displayAge}` : ending === 'death' ? `Death · Age ${displayAge}` : `Age ${displayAge}`;
       text.append(node('text', { x: width - 8, y: bottom - 6, 'text-anchor': 'end', 'font-weight': 700, fill: ending === 'death' ? accent : ink }, endText));
     }
-    if (age) group.append(horizontalRule(age, preview ? rule : ink));
+    if (span) group.append(horizontalRule(span, preview ? rule : ink));
     group.append(
       node('line', { x1: mid, x2: mid, y1: top, y2: bottom, stroke: ink, 'stroke-width': preview ? 1.5 : 2.2 }),
       node('circle', { cx: mid, cy: top, r: preview ? 2 : 3.1, fill: ink })
