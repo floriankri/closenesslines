@@ -93,7 +93,7 @@ const ClosenessPlot = (() => {
       }).filter(x => x >= 0 && x <= plot.width);
   }
 
-  function render(svg, { age, duration = age, lines, events = [], ending = 'snapshot', selected = null, preview = false, tooltip = null }) {
+  function render(svg, { age, duration = age, lines, events = [], ending = 'snapshot', selected = null, preview = false, tooltip = null, compactEvents = false }) {
     const width = preview ? 210 : svg.clientWidth || 600;
     const height = preview ? 420 : svg.clientHeight || 840;
     const mid = width / 2;
@@ -110,6 +110,7 @@ const ClosenessPlot = (() => {
     const defs = node('defs');
     const group = node('g');
     const hits = node('g', { 'aria-label': 'Relationship lines' });
+    const eventHits = node('g', { 'aria-label': 'Life events' });
     const text = node('g', { 'font-family': 'system-ui,sans-serif', 'font-size': 10, fill: 'var(--muted, #5f5a51)', 'paint-order':'stroke', stroke:'var(--paper, #f7f4eb)', 'stroke-width':3, 'stroke-linejoin':'round' });
     const horizontalRule = (value, stroke) => node('line', { x1: 7, x2: width - 7, y1: y(value), y2: y(value), stroke });
     const rule = 'var(--rule, #d4cec0)';
@@ -140,9 +141,16 @@ const ClosenessPlot = (() => {
       group.append(eventLine);
       const eventLabel = [event.type, event.label].filter(Boolean).join(' · ');
       if (eventLabel) eventLine.append(node('title', {}, eventLabel));
-      if (!preview && event.type) text.append(node('text', { x: -12, y: eventY + 3, 'text-anchor':'end', 'font-size':9, fill: accent, 'pointer-events': 'none' }, event.type));
+      const compact = compactEvents && !preview;
+      const chipX = 64;
+      const chipWidth = Math.min(130, Math.max(70, (event.type?.length || 0) * 5.5 + 16), width - chipX - 16);
+      const shortType = event.type?.length > 19 ? `${event.type.slice(0, 18)}…` : event.type;
+      if (!preview && event.type) {
+        if (compact) text.append(node('rect', { x: chipX, y: eventY - 25, width: chipWidth, height: 22, rx: 3, fill: paper, stroke: rule, 'stroke-width': 1, 'pointer-events': 'none' }));
+        text.append(node('text', { x: compact ? chipX + 7 : -12, y: compact ? eventY - 10 : eventY + 3, 'text-anchor': compact ? 'start' : 'end', 'font-size': compact ? 10 : 9, fill: accent, 'pointer-events': 'none' }, compact ? shortType : event.type));
+      }
       if (!preview && eventLabel && tooltip) {
-        const hit = node('rect', { x: -100, y: eventY - 16, width: 94, height: 32,
+        const hit = node('rect', { x: compact ? chipX : -100, y: compact ? eventY - 32 : eventY - 16, width: compact ? chipWidth : 94, height: compact ? 40 : 32,
           fill: 'transparent', 'pointer-events': 'all', class: 'plot-hit',
           tabindex: 0, role: 'button', 'aria-label': eventLabel });
         const show = event => {
@@ -169,7 +177,7 @@ const ClosenessPlot = (() => {
           event.preventDefault();
           show(event);
         });
-        hits.append(hit);
+        eventHits.append(hit);
       }
     }
     if (span) group.append(horizontalRule(span, preview ? rule : ink));
@@ -240,7 +248,7 @@ const ClosenessPlot = (() => {
     }
     if (ending === 'death') group.append(node('circle', { cx: mid, cy: bottom, r: 5, fill: paper, stroke: accent, 'stroke-width': 1.5 }));
     if (tooltip) tooltip.hidden = true;
-    svg.replaceChildren(defs, group, hits, text);
+    svg.replaceChildren(defs, group, hits, text, eventHits);
   }
 
   return { node, render, relationshipType, namedLines, publicLines, scalePositions, fadeStartAge };

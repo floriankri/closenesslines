@@ -37,6 +37,9 @@ h2{font-size:1.65rem;font-weight:400;line-height:1.12;letter-spacing:-.03em;over
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,240px);border-top:1px solid var(--ink)}
 .board{min-width:0;padding-left:100px;max-width:520px;width:100%;margin-inline:auto}
 .event-gutter{position:absolute;left:-100px;top:0;bottom:0;width:96px;padding:0;border:0;border-right:1px dashed var(--rule);color:var(--accent);background:transparent;cursor:crosshair}.event-gutter span{position:absolute;top:12px;left:6px}.event-mark{cursor:ns-resize;touch-action:none}.event-text{font:500 9px var(--ui);fill:var(--accent);paint-order:stroke;stroke:var(--paper);stroke-width:3px}
+.canvas-actions{display:flex;gap:8px;align-items:center;justify-content:center;padding:10px 8px;border-bottom:1px solid var(--rule);font:500 .78rem var(--ui)}
+.canvas-actions .placement-active{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+.guide{max-width:760px;margin:14px auto;border:1px solid var(--rule);padding:12px 14px;background:#f0ebde}.guide summary{cursor:pointer;font:650 .8rem var(--ui);letter-spacing:.04em}.guide p{margin:7px 0;color:var(--muted);font:500 .78rem/1.45 var(--ui)}.guide-list{display:grid;gap:6px;margin:9px 0 0;padding:0;list-style:none}.guide-list button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border-color:transparent;background:transparent}.guide-list button::before{content:'→';font-size:1rem;color:var(--accent)}.guide-list button[aria-pressed="true"]::before{content:'✓'}.guide-list button:hover{border-color:var(--rule)}
 .axis-key{position:sticky;top:0;z-index:2;background:var(--paper);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px;border-bottom:1px solid var(--rule);padding:9px 8px;color:var(--muted)}
 .axis-key strong{background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:2px}
 .plot{position:relative;min-height:840px}
@@ -104,6 +107,12 @@ dialog .fields{justify-content:end;padding-top:4px}
   .wrap{width:calc(100% - 28px)}
   .hero{padding:25px 0 18px}
   .workspace{grid-template-columns:minmax(0,1fr)}
+  .board{padding-left:0;max-width:none}
+  .event-gutter{display:none}
+  .canvas-actions{position:sticky;top:0;z-index:4;background:var(--paper);justify-content:stretch}.canvas-actions button{flex:1}
+  .event-text{font-size:9px;stroke-width:4px}
+  .editor:not([hidden]){position:fixed;z-index:20;left:0;right:0;bottom:0;margin:0;padding:14px 16px 18px;border:1px solid var(--ink);background:var(--paper);box-shadow:0 -5px 22px #24241f22;max-height:42dvh;overflow:auto}
+  .editor-close{float:right;position:sticky;top:0;z-index:1}
   .sidebar{border-left:0;border-top:1px solid var(--rule);padding:16px 0}
   #relationships{display:flex;gap:4px;flex-wrap:wrap}
   .axis-key{font-size:.57rem;letter-spacing:.04em}
@@ -144,9 +153,21 @@ dialog .fields{justify-content:end;padding-top:4px}
   </div>
 </div>
 <p id="status" role="status" aria-live="polite"></p>
+<details class="guide" id="guide" open>
+  <summary>Build your timeline</summary>
+  <p>Time goes down; closer to the centre means closer to you. Work in any order, or close this guide and draw freely.</p>
+  <ul class="guide-list">
+    <li><button type="button" data-guide="event">Add a move, school, university or job change</button></li>
+    <li><button type="button" data-guide="person">Add important people</button></li>
+    <li><button type="button" data-guide="shape">Shape one line over time</button></li>
+    <li><button type="button" data-guide="review">Review and share</button></li>
+  </ul>
+  <p>Two parent lines are a starting point. Edit or remove them; add only the people who matter to you.</p>
+</details>
 <div class="workspace">
   <section class="board" aria-label="Timeline">
     <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span title="Acquaintance">Acquaint.</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span title="Acquaintance">Acquaint.</span></div></div>
+    <div class="canvas-actions" aria-label="Timeline actions"><button type="button" id="add-person">Add person</button><button type="button" id="add-event">Add life event</button><button type="button" id="cancel-placement" hidden>Cancel</button></div>
     <div class="plot">
       <button type="button" id="event-gutter" class="event-gutter" aria-label="Add life event at an age" title="Click beside an age to add a life event"><span>+</span></button>
       <svg id="plot" aria-label="Closeness graph. Age increases from top to bottom." aria-describedby="plot-help"></svg>
@@ -157,6 +178,7 @@ dialog .fields{justify-content:end;padding-top:4px}
   </section>
   <aside class="sidebar">
     <section class="editor" id="editor" hidden aria-label="Selected relationship">
+      <button type="button" id="close-editor" class="editor-close">Done</button>
       <p class="panel-kicker" id="kind-label"></p>
       <h2 id="person-label"></h2>
       <p id="span-label"></p>
@@ -188,10 +210,10 @@ dialog .fields{justify-content:end;padding-top:4px}
 <section class="sharing" aria-label="Save and share your timeline">
   <label class="tagline-field" for="tagline"><span class="label">Public tagline · optional</span><textarea id="tagline" rows="2" maxlength="180" placeholder="One or two lines about this life"></textarea></label>
   <div class="actions">
-    <button type="button" class="primary" id="share" disabled>Share</button>
-    <button type="button" id="editing-link" disabled>Editing link</button>
+    <button type="button" class="primary" id="share" disabled>Publish &amp; share</button>
+    <button type="button" id="editing-link" disabled>Save / editing link</button>
   </div>
-  <p class="fine">Shared timelines with at least two relationships appear in the public Gallery without names. Relationship types stay visible. Anyone with the editing link can change this timeline.</p>
+  <p class="fine">Publish &amp; share creates a named link and an anonymous Gallery link. Timelines with at least two people appear in the Gallery. Relationship types stay visible publicly; anyone with the editing link can change this timeline.</p>
   <p class="fine" id="share-state"></p>
   <p class="fine" id="share-result" role="status" aria-live="polite"></p>
   <dl id="timeline-links" class="link-list" hidden></dl>
@@ -229,6 +251,8 @@ const $ = id => document.getElementById(id);
 const svg = $('plot');
 const ns = 'http://www.w3.org/2000/svg';
 const storageKey = 'people-we-keep.creator.v1';
+try { $('guide').open = localStorage.getItem('closeness.guide.closed') !== 'true'; } catch {}
+$('guide').addEventListener('toggle', () => { try { localStorage.setItem('closeness.guide.closed', String(!$('guide').open)); } catch {} });
 const categories = {
   family: {
     label: 'Family', fallback: 'Family member',
@@ -269,6 +293,7 @@ let chart = null;
 let drag = null;
 let eventDrag = null;
 let dialogContext = null;
+let placementMode = null;
 const requestedEditId = new URLSearchParams(location.search).get('edit');
 const keepLocalDraft = requestedEditId === null;
 let editUnavailable = !keepLocalDraft;
@@ -664,9 +689,14 @@ function renderPlot(restoreFocus) {
     const eventY = y(item.age);
     const marker = element('g', {class:'event-mark', 'data-event':item.id, tabindex:0, role:'button', 'aria-label':`Edit ${item.type}, ${ageText(item.age)}`});
     eventRules.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
-    marker.append(element('rect',{x:-100,y:eventY-16,width:94,height:32,fill:'transparent'}),
-      element('text',{x:-12,y:eventY+3,'text-anchor':'end',class:'event-text','pointer-events':'none'},item.type));
+    const mobileEventLabels = window.matchMedia('(max-width:680px)').matches;
+    const chipWidth = Math.min(130, Math.max(70, item.type.length * 5.5 + 16), width - 80);
+    const chipText = item.type.length > 19 ? `${item.type.slice(0, 18)}…` : item.type;
+    marker.append(element('rect',{x:mobileEventLabels ? 64 : -100,y:mobileEventLabels ? eventY-32 : eventY-16,width:mobileEventLabels ? chipWidth : 94,height:mobileEventLabels ? 40 : 32,fill:'transparent'}));
+    if (mobileEventLabels) marker.append(element('rect',{x:64,y:eventY-25,width:chipWidth,height:22,rx:3,fill:'var(--paper)',stroke:'var(--rule)','pointer-events':'none'}));
+    marker.append(element('text',{x:mobileEventLabels ? 71 : -12,y:mobileEventLabels ? eventY-10 : eventY+3,'text-anchor':mobileEventLabels ? 'start' : 'end',class:'event-text','pointer-events':'none'}, mobileEventLabels ? chipText : item.type));
     marker.addEventListener('pointerdown', event => {
+      if (placementMode) return;
       event.stopPropagation();
       if (event.button !== 0 || !event.isPrimary || drag || eventDrag) return;
       event.preventDefault();
@@ -701,12 +731,17 @@ function render() {
   $('undo').disabled = !history.length;
   document.querySelector('.tools').inert = loadingEdit || saving;
   document.querySelector('.workspace').inert = editUnavailable || saving;
-  $('hint').hidden = !!data.relationships.length;
+  $('hint').hidden = !!data.relationships.length || !!placementMode;
   const title = document.createElement('strong');
   const helper = document.createElement('small');
   title.textContent = started ? 'Start with one person.' : 'Every timeline begins at birth.';
   helper.textContent = started ? 'Tap anywhere on the graph to add a relationship at that age and distance.' : 'Choose a birth year above to draw a timeline.';
   $('hint').replaceChildren(title, helper);
+  $('add-person').classList.toggle('placement-active', placementMode === 'person');
+  $('add-event').classList.toggle('placement-active', placementMode === 'event');
+  $('cancel-placement').hidden = !placementMode;
+  $('add-person').disabled = !started || editUnavailable;
+  $('add-event').disabled = !started || editUnavailable;
   $('editor').hidden = !track;
   if (track) {
     const type = relationshipType(track);
@@ -787,7 +822,7 @@ function movePoint(track, i, age, distance, originalEnding) {
 svg.addEventListener('pointerdown', event => {
   if (event.button !== 0 || !event.isPrimary || drag) return;
   hideTooltip();
-  const hit = event.target.closest('[data-track]');
+  const hit = placementMode ? null : event.target.closest('[data-track]');
   const track = hit && data.relationships.find(item => item.id === hit.dataset.track);
   const point = hit?.dataset.point;
   if (track) {
@@ -848,7 +883,15 @@ function finish(event, cancelled) {
     if (data.birthYear === null) {
       $('birth').focus();
       status('Choose a birth year to start drawing.');
-    } else openPersonDialog(null, gesture.place);
+    } else if (placementMode === 'event') {
+      placementMode = null;
+      openEvent(gesture.place[0]);
+      render();
+    } else {
+      placementMode = null;
+      render();
+      openPersonDialog(null, gesture.place);
+    }
   }
 }
 svg.addEventListener('pointermove', event => {
@@ -944,6 +987,26 @@ $('event-gutter').addEventListener('click', event => {
   const rect=svg.getBoundingClientRect();
   const age=event.detail ? (event.clientY-rect.top-chart.top)/(chart.bottom-chart.top)*chart.max : 0;
   openEvent(age);
+});
+function setPlacement(mode) {
+  if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
+  placementMode = placementMode === mode ? null : mode;
+  selected = null;
+  $('guide').open = false;
+  status(placementMode === 'person' ? 'Click the graph where this person should begin.' : placementMode === 'event' ? 'Click the graph at the age of the life event.' : 'Placement cancelled.');
+  render();
+}
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && placementMode) { placementMode = null; status('Placement cancelled.'); render(); } });
+$('add-person').addEventListener('click', () => setPlacement('person'));
+$('add-event').addEventListener('click', () => setPlacement('event'));
+$('cancel-placement').addEventListener('click', () => { placementMode = null; status('Placement cancelled.'); render(); });
+$('close-editor').addEventListener('click', () => { selected = null; render(); });
+for (const button of document.querySelectorAll('[data-guide]')) button.addEventListener('click', () => {
+  const action = button.dataset.guide;
+  if (action === 'event') setPlacement('event');
+  else if (action === 'person') setPlacement('person');
+  else if (action === 'shape') { $('guide').open = false; selected = selected || data.relationships[0]?.id || null; render(); status('Drag the selected line to show a change in closeness. Use Undo to try again.'); }
+  else if (action === 'review') { $('tagline').focus(); status('Review the public tagline, then choose Publish & share or Save / editing link.'); }
 });
 $('event-cancel').addEventListener('click',()=> $('event-dialog').close());
 $('event-delete').addEventListener('click',()=> {
