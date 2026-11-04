@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Draw a private timeline of the people in a life.">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Draw a life · Closeness Lines</title>
+<link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml">
+<link rel="stylesheet" href="./site.css">
+<style>
+:root{color-scheme:light;--paper:#f7f4eb;--ink:#24241f;--muted:#5f5a51;--rule:#d4cec0;--accent:#a33d2d;--ui:system-ui,sans-serif;--serif:Georgia,serif;--family:#4f6e85;--friends:#3e725f;--romance:#9c4c59;--work:#846629;--pets:#765f8d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:1rem/1.5 var(--serif)}
+.wrap{width:min(1080px,calc(100% - 48px));margin:auto}
+a{color:inherit;text-underline-offset:.28em}
+button,input,select{font:inherit;color:inherit}
+button,select,input[type="number"],input[type="text"]{min-height:40px;padding:7px 10px;border:1px solid var(--rule);border-radius:2px;background:var(--paper);font:500 .88rem var(--ui)}
+button{cursor:pointer}
+button:hover:not(:disabled),select:hover:not(:disabled){border-color:var(--ink)}
+button:disabled{cursor:default;opacity:.45}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.eyebrow,.axis-key,.label,.panel-kicker{font:650 .68rem/1.5 var(--ui);letter-spacing:.14em;text-transform:uppercase}
+.hero{padding:35px 0 25px}
+.eyebrow,.panel-kicker{color:var(--accent)}
+h1,h2,p{margin:0}
+h1{margin:0}
+h2{font-size:1.65rem;font-weight:400;line-height:1.12;letter-spacing:-.03em;overflow-wrap:anywhere}
+.tools{display:flex;align-items:end;justify-content:space-between;gap:12px 22px;flex-wrap:wrap;border-block:1px solid var(--rule);padding:13px 0}
+.fields,.actions{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.fields label,form label,.editor label{display:grid;gap:5px}
+.fields input[type="number"]{width:90px}
+#status{min-height:2.25em;padding:7px 0;font:500 .77rem/1.45 var(--ui);color:var(--muted)}
+#status.error,.danger{color:var(--accent)}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,260px);border-top:1px solid var(--ink)}
+.board{min-width:0}
+.axis-key{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px;border-bottom:1px solid var(--rule);padding:9px 8px;color:var(--muted)}
+.axis-key strong{background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:2px}
+.plot{position:relative;min-height:680px}
+svg{display:block;width:100%;height:680px;touch-action:pan-y;user-select:none}
+.grid{stroke:var(--rule);stroke-width:1}
+.side{stroke:var(--rule);stroke-width:1;stroke-dasharray:3 5;opacity:.8}
+.you{stroke:var(--ink);stroke-width:2.2}
+.tick{font:650 10px var(--ui);fill:var(--muted);paint-order:stroke;stroke:var(--paper);stroke-width:4px;stroke-linejoin:round}
+.now-rule{stroke:var(--ink);stroke-width:1;opacity:.68}
+.end-label{fill:var(--ink);font-weight:750}
+.death-label{fill:var(--accent)}
+.thread{fill:none;stroke:var(--line);stroke-width:2.2;stroke-linecap:round}
+.thread.selected{stroke-width:3}
+.start{fill:var(--line)}
+.terminal{fill:var(--paper);stroke:var(--accent);stroke-width:1.8}
+.hit,.handle{touch-action:none}
+.hit{stroke:transparent;stroke-width:22;fill:none;pointer-events:stroke;cursor:grab}
+.handle{cursor:grab}
+.handle:focus-visible{outline:none}
+.handle:focus-visible .knob{stroke:var(--accent);stroke-width:3}
+.handle .knob{fill:var(--paper);stroke:var(--line);stroke-width:1.8}
+.handle .knob.terminal{stroke:var(--accent)}
+.dragging .hit,.dragging .handle{cursor:grabbing}
+.hint{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:min(82%,320px);padding:16px 18px;background:var(--paper);border:1px solid var(--rule);text-align:center;pointer-events:none}
+.hint strong{display:block;font-weight:400;font-size:1.27rem}
+.hint small{display:block;color:var(--muted);font:500 .81rem/1.5 var(--ui);margin-top:4px}
+.sidebar{border-left:1px solid var(--rule);padding:16px 0 24px 18px;min-width:0}
+.sidebar p:not(.panel-kicker),.fine{color:var(--muted);font:500 .81rem/1.55 var(--ui)}
+.editor{padding:0 0 16px;margin:0 0 14px;border-bottom:1px solid var(--rule)}
+.editor h2{margin:3px 0 4px}
+.editor .fields{margin-top:10px}
+.editor label{margin-top:12px}
+#ending-help{margin-top:6px}
+#relationships{padding:6px 0 0;margin:0;list-style:none}
+#relationships button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;overflow-wrap:anywhere;border-color:transparent}
+#relationships button:hover,#relationships button[aria-pressed="true"]{border-color:var(--rule);background:#f0ebde}
+.swatch{flex:none;width:13px;border-top:2px solid var(--line)}
+.instructions{border-top:1px solid var(--rule);margin-top:14px;padding-top:12px}
+.instructions summary{cursor:pointer;font:650 .8rem/1.5 var(--ui)}
+.instructions p{margin-top:8px}
+dialog{background:var(--paper);color:var(--ink);border:1px solid var(--ink);border-radius:2px;padding:22px;width:min(420px,calc(100vw - 32px))}
+dialog::backdrop{background:#24241f68}
+dialog h2{margin:4px 0 8px}
+dialog form{display:grid;gap:13px}
+dialog .fields{justify-content:end;padding-top:4px}
+.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.sharing{padding:18px 0 38px;border-top:1px solid var(--ink);text-align:center}
+.sharing > .actions{justify-content:center}
+#share{background:var(--accent);border-color:var(--accent);color:var(--paper)}
+.sharing p{margin:8px auto 0;max-width:660px}
+.sharing p:empty{display:none}
+.link-list{display:grid;gap:10px;max-width:660px;margin:16px auto 0}
+.link-list dt{margin-bottom:3px}
+.link-list dd{display:flex;align-items:center;justify-content:center;gap:10px;margin:0}
+.link-list dd a{min-width:0;overflow-wrap:anywhere}
+.link-list dd button{flex-shrink:0}
+[hidden]{display:none!important}
+@media(max-width:680px){
+  .wrap{width:calc(100% - 28px)}
+  .hero{padding:25px 0 18px}
+  .workspace{grid-template-columns:minmax(0,1fr)}
+  .sidebar{border-left:0;border-top:1px solid var(--rule);padding:16px 0}
+  #relationships{display:flex;gap:4px;flex-wrap:wrap}
+  .axis-key{font-size:.57rem;letter-spacing:.04em}
+  button,select,input[type="number"],input[type="text"]{min-height:44px}
+  select,input[type="number"],input[type="text"]{font-size:16px}
+  dialog{max-height:calc(100dvh - 28px);overflow-y:auto}
+}
+@media(pointer:coarse){.handle > circle:first-child{r:20px}}
+@media(min-width:681px){
+  .page-heading{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
+  .page-heading + .tools{border-top:0}
+  .page-heading + article .essay-card{border-top:0}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="site-masthead">
+  <a class="site-brand" href="./index.html">Closeness Lines</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="./index.html">Home</a>
+    <a href="./creator.html" aria-current="page">Creator</a>
+    <a href="./gallery.html">Gallery</a>
+  </nav>
+</header>
+<section class="hero page-heading">
+  <h1 class="site-title">Draw <em>a life.</em></h1>
+</section>
+<div class="tools">
+  <div class="fields">
+    <label><span class="label">Birth year</span><input id="birth" type="number" inputmode="numeric" min="1900" step="1" placeholder="YYYY" required></label>
+  </div>
+  <div class="actions">
+    <button type="button" id="undo" disabled>Undo</button>
+    <button type="button" id="load">Import</button>
+    <button type="button" id="save" disabled>Export</button>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </div>
+</div>
+<p id="status" role="status" aria-live="polite"></p>
+<div class="workspace">
+  <section class="board" aria-label="Timeline">
+    <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span></div>
+    <div class="plot">
+      <svg id="plot" aria-label="Closeness graph. Age increases from top to bottom." aria-describedby="plot-help"></svg>
+      <div class="hint" id="hint"></div>
+    </div>
+  </section>
+  <aside class="sidebar">
+    <section class="editor" id="editor" hidden aria-label="Selected relationship">
+      <p class="panel-kicker" id="kind-label"></p>
+      <h2 id="person-label"></h2>
+      <p id="span-label"></p>
+      <label><span class="label">How the line ends</span>
+        <select id="ending">
+          <option value="ongoing">Ongoing</option>
+          <option value="fade">Fades away</option>
+          <option value="death">Death · red ring</option>
+        </select>
+      </label>
+      <p id="ending-help"></p>
+      <div class="fields">
+        <button type="button" id="edit">Edit details</button>
+        <button type="button" id="remove" class="danger">Remove</button>
+      </div>
+    </section>
+    <p class="panel-kicker">Relationships</p>
+    <p id="empty-list">The people you add appear here.</p>
+    <ul id="relationships"></ul>
+    <details class="instructions">
+      <summary>How to draw</summary>
+      <p id="plot-help">Tap blank space to start a relationship. Drag its line to add a point. Drag a point to move it, or tap an inside point to remove it.</p>
+      <p>Drag the end earlier or toward either outer edge to fade it. Choose <em>Death</em> to end it with a red ring. A line can move to either side; only its distance from you matters.</p>
+      <p>With a point focused, use the arrow keys to move it or Delete to remove an inside point.</p>
+      <p>Ages are approximate from birth year.</p>
+    </details>
+  </aside>
+</div>
+<section class="sharing" aria-label="Save and share your timeline">
+  <div class="actions">
+    <button type="button" class="primary" id="share" disabled>Share</button>
+    <button type="button" id="editing-link" disabled>Editing link</button>
+  </div>
+  <p class="fine">Share adds a version without names to the public Gallery. Relationship types stay visible. Anyone with the editing link can change this timeline.</p>
+  <p class="fine" id="share-state"></p>
+  <p class="fine" id="share-result" role="status" aria-live="polite"></p>
+  <dl id="timeline-links" class="link-list" hidden></dl>
+</section>
+</main>
+<dialog id="person-dialog" aria-labelledby="dialog-title">
+  <p class="eyebrow" id="dialog-age"></p>
+  <h2 id="dialog-title">Add a relationship</h2>
+  <form id="person-form">
+    <label><span class="label">Category</span><select id="category"></select></label>
+    <label><span class="label">Relationship type</span><select id="subtype"></select></label>
+    <label><span class="label">Name or label <span class="fine">(optional)</span></span><input type="text" id="person-name" maxlength="80" placeholder="e.g. Sam"></label>
+    <div class="fields">
+      <button type="button" id="cancel">Cancel</button>
+      <button type="submit" class="primary" id="person-submit">Add relationship</button>
+    </div>
+  </form>
+</dialog>
+<noscript><p>Enable JavaScript to draw a timeline.</p></noscript>
+<script src="./config.js"></script>
+<script src="./api.js"></script>
+<script src="./timeline-plot.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const svg = $('plot');
+const ns = 'http://www.w3.org/2000/svg';
+const storageKey = 'people-we-keep.creator.v1';
+const categories = {
+  family: {
+    label: 'Family', fallback: 'Family member',
+    types: ['Parent', 'Mum', 'Dad', 'Sibling', 'Child', 'Grandparent', 'Extended family']
+  },
+  friends: {
+    label: 'Friends', fallback: 'Friend',
+    types: ['Friend', 'Childhood friend', 'School friend', 'University friend', 'Close friend', 'Neighbor', 'Friend group']
+  },
+  romance: { label: 'Romance', fallback: 'Partner', types: ['Partner', 'Spouse', 'Dating', 'Fling'] },
+  work: { label: 'Work', fallback: 'Colleague', types: ['Colleague', 'Mentor', 'Work friend', 'Team'] },
+  pets: { label: 'Pets', fallback: 'Pet', types: ['Pet', 'Dog', 'Cat', 'Other pet'] }
+};
+const endings = new Set(['ongoing', 'fade', 'death']);
+const minBirth = 1900;
+const currentYear = new Date().getFullYear();
+const maxAge = 200;
+const gap = .001;
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+const round = value => Math.round(value * 1000) / 1000;
+const clone = value => JSON.parse(JSON.stringify(value));
+const wholeAge = Math.floor;
+const ageText = age => `Age ${wholeAge(age)}`;
+const yearInRange = (year, min, max) => Number.isInteger(year) && year >= min && year <= max;
+$('birth').max = currentYear;
+const horizon = model => model.birthYear === null ? 0 : (model.endYear ?? currentYear) - model.birthYear;
+const empty = () => ({ version: 2, birthYear: null, endMode: 'now', endYear: null, relationships: [] });
+let data = empty();
+let selected = null;
+let history = [];
+let chart = null;
+let drag = null;
+let dialogContext = null;
+const requestedEditId = new URLSearchParams(location.search).get('edit');
+const keepLocalDraft = requestedEditId === null;
+let editUnavailable = !keepLocalDraft;
+let loadingEdit = editUnavailable;
+let remote = null;
+let saving = false;
+let linksVisible = null;
+
+function normalizeSubtype(category, subtype) {
+  const type = subtype.trim();
+  if (category !== 'family') return type;
+  const rankedType = type.match(/^(?:(?:older|oldest|middle|younger|youngest|first|second|third|\d+(?:st|nd|rd|th)) )?(sibling|child)$/i);
+  if (!rankedType) return type;
+  return rankedType[1].toLowerCase() === 'sibling' ? 'Sibling' : 'Child';
+}
+const relationshipType = track => ClosenessPlot.relationshipType(track, data.relationships);
+const displayName = (track, type = relationshipType(track)) => track.name || type || categories[track.category].fallback;
+
+function migrateV1(value) {
+  if (value.birth === '' && Array.isArray(value.relationships) && !value.relationships.length && value.endAge === null) return empty();
+  if (typeof value.birth !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value.birth) ||
+      !Number.isFinite(Date.parse(value.birth)) || new Date(value.birth).toISOString().slice(0, 10) !== value.birth ||
+      !(value.endAge === null || (Number.isFinite(value.endAge) && value.endAge >= 0 && value.endAge <= maxAge)) ||
+      !Array.isArray(value.relationships)) return value;
+  const birthYear = Number(value.birth.slice(0, 4));
+  const legacyEnd = value.endAge ?? (value.relationships.length ? Math.max(90, currentYear - birthYear) : 0);
+  const endYear = birthYear + Math.ceil(legacyEnd);
+  // Describe the original horizon so validation can safely trim legacy projections.
+  return { version: 2, birthYear, endMode: endYear > currentYear ? 'future' : 'now',
+    endYear: endYear > currentYear ? endYear : null, relationships: value.relationships };
+}
+function validate(value) {
+  const bad = (message = 'This is not a valid People We Keep timeline.') => { throw new Error(message); };
+  if (value?.version === 1) value = migrateV1(value);
+  if (!value || value.version !== 2 || !(value.birthYear === null || yearInRange(value.birthYear, minBirth, currentYear)) ||
+      !['now', 'future', 'death'].includes(value.endMode) ||
+      !Array.isArray(value.relationships) || value.relationships.length > 100) bad();
+  const { birthYear, endMode, endYear } = value;
+  if (endMode === 'now' && endYear !== null) bad();
+  if (birthYear === null && (endMode !== 'now' || value.relationships.length)) bad();
+  if (endMode === 'future' && !yearInRange(endYear, birthYear, birthYear + maxAge)) bad();
+  if (endMode === 'death' && !yearInRange(endYear, birthYear, currentYear)) bad();
+  const legacyFuture = endMode === 'future';
+  const model = { ...empty(), birthYear, endMode: legacyFuture ? 'now' : endMode, endYear: legacyFuture ? null : endYear };
+  const ids = new Set();
+  const max = horizon(model);
+  const originalMax = legacyFuture ? endYear - birthYear : max;
+  for (const track of value.relationships) {
+    if (!track || typeof track.id !== 'string' || !/^[a-z0-9-]{1,64}$/.test(track.id) || ids.has(track.id) ||
+        !Object.hasOwn(categories, track.category) || !endings.has(track.ending) ||
+        typeof track.name !== 'string' || track.name.length > 80 ||
+        typeof track.subtype !== 'string' || track.subtype.length > 50 ||
+        !Array.isArray(track.points) || !track.points.length || track.points.length > 500) bad();
+    let previous = -1;
+    const points = track.points.map(point => {
+      if (!Array.isArray(point) || point.length !== 2 || !Number.isFinite(point[0]) ||
+          point[0] < 0 || point[0] > originalMax || point[0] <= previous || point[0] !== round(point[0]) ||
+          !Number.isFinite(point[1]) || Math.abs(point[1]) > 1 || point[1] !== round(point[1])) bad('A relationship contains an out-of-order point or a point outside the timeline.');
+      previous = point[0];
+      return [...point];
+    });
+    ids.add(track.id);
+    let { ending } = track;
+    if (legacyFuture) {
+      const firstFuture = points.findIndex(([age]) => age > max);
+      if (firstFuture === 0) continue;
+      if (firstFuture > 0) {
+        const before = points[firstFuture - 1];
+        const after = points[firstFuture];
+        points.splice(firstFuture);
+        if (before[0] < max) points.push([max, interpolatedDistance(before, after, max)]);
+        ending = 'ongoing';
+      }
+    }
+    if (ending === 'ongoing') {
+      if (points.length === 1 && points[0][0] < max) points.push([max, points[0][1]]);
+      else if (points.length > 1 && max > points.at(-2)[0]) points.at(-1)[0] = max;
+      else if (points.length > 1) bad('An ongoing relationship must have room to reach the end age.');
+    }
+    const subtype = normalizeSubtype(track.category, track.subtype);
+    model.relationships.push({ id: track.id, name: track.name.trim(), category: track.category, subtype, ending, points });
+  }
+  return model;
+}
+function status(message, error = false) {
+  $('status').textContent = message;
+  $('status').classList.toggle('error', error);
+}
+function storeDraft(message = '') {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(data));
+    status(message || (data.birthYear !== null ? 'Draft saved in this browser.' : 'Start with a birth year.'));
+  } catch {
+    status(message ? `${message} Browser storage is unavailable; export JSON to save a copy.` : 'Browser storage is unavailable; export JSON to save a copy.');
+  }
+}
+function remember(before = data, selection = selected) {
+  history.push({ data: clone(before), selection });
+  if (history.length > 40) history.shift();
+}
+function commit(message) {
+  if (keepLocalDraft) storeDraft(message);
+  else status(message || 'Changes are in this tab until you save them.');
+  render();
+}
+function undo() {
+  if (!history.length || drag || $('person-dialog').open) return;
+  const item = history.pop();
+  data = item.data;
+  selected = item.selection;
+  if (Object.hasOwn(item, 'restoreRemote')) {
+    remote = item.restoreRemote;
+    linksVisible = null;
+    syncEditingURL();
+  }
+  commit('Last change undone.');
+}
+try {
+  if (keepLocalDraft) {
+    const saved = localStorage.getItem(storageKey);
+    if (saved) data = validate(JSON.parse(saved));
+    status(data.birthYear !== null ? 'Draft restored from this browser.' : 'Start with a birth year.');
+  } else {
+    status('Loading this editing link…');
+  }
+} catch {
+  status('The saved draft could not be loaded. You can start a timeline or import a JSON copy.');
+}
+function reviseTimeline(birthYear) {
+  const next = clone(data);
+  next.birthYear = birthYear;
+  const max = horizon(next);
+  for (const track of next.relationships) {
+    const points = track.points;
+    if (track.ending === 'ongoing') {
+      if (points.length === 1 && max > points[0][0]) points.push([max, points[0][1]]);
+      else if (points.length > 1 && max > points.at(-2)[0]) points.at(-1)[0] = max;
+      else if (points.length === 2 && max === points[0][0]) points.pop();
+      else if (max < points.at(-1)[0]) return false;
+    } else if (max < points.at(-1)[0]) return false;
+  }
+  remember();
+  data = next;
+  commit();
+  return true;
+}
+$('birth').addEventListener('change', () => {
+  const field = $('birth');
+  if (field.value === '' && data.birthYear !== null && !field.validity.badInput) {
+    if (data.relationships.length) {
+      render();
+      return status('Remove the relationships before clearing the birth year.', true);
+    }
+    remember();
+    data = empty();
+    commit();
+    return;
+  }
+  const year = field.valueAsNumber;
+  if (!yearInRange(year, minBirth, currentYear)) {
+    render();
+    return status(`Choose a birth year from ${minBirth} through ${currentYear}.`, true);
+  }
+  if (year === data.birthYear) return;
+  if (data.endYear !== null && !yearInRange(data.endYear, year, currentYear)) {
+    render();
+    return status('That birth year does not fit the timeline’s end year.', true);
+  }
+  if (!reviseTimeline(year)) {
+    render();
+    status('That birth year would leave relationship points past the end of the timeline.', true);
+  }
+});
+
+function element(tag, attributes, value) {
+  const node = document.createElementNS(ns, tag);
+  for (const [key, val] of Object.entries(attributes)) node.setAttribute(key, val);
+  if (value !== undefined) node.textContent = value;
+  return node;
+}
+const activeTrack = () => data.relationships.find(track => track.id === selected);
+function renderPlot(restoreFocus) {
+  const width = svg.clientWidth;
+  const height = svg.clientHeight;
+  const mid = width / 2;
+  const top = 30;
+  const bottom = height - 31;
+  const spread = Math.max(1, mid - 18);
+  const max = horizon(data);
+  const x = distance => mid + spread * distance;
+  const y = age => max ? top + (bottom - top) * age / max : top;
+  const ended = data.endMode === 'death';
+  const nowAge = data.birthYear === null || ended ? null : currentYear - data.birthYear;
+  const nowY = nowAge === null ? null : y(nowAge);
+  const endY = y(max);
+  chart = { top, bottom, max, x, y, mid, spread };
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+  const fragment = document.createDocumentFragment();
+  const defs = element('defs', {});
+  fragment.append(defs);
+  const step = max > 110 ? 20 : max > 50 ? 10 : max > 20 ? 5 : max > 9 ? 2 : 1;
+  const ticks = [0];
+  const previousAge = nowAge > 1 ? nowAge - 1 : null;
+  for (let age = step; age < max; age += step) {
+    if (endY - y(age) <= 21 || (nowY !== null && Math.abs(nowY - y(age)) <= 21)) continue;
+    if (previousAge !== null && Math.abs(y(previousAge) - y(age)) <= 14) continue;
+    ticks.push(age);
+  }
+  if (previousAge !== null) ticks.push(previousAge);
+  if (max && ended) ticks.push(max);
+  for (const age of ticks) {
+    fragment.append(element('line', { x1: 8, x2: width - 8, y1: y(age), y2: y(age), class: 'grid' }));
+  }
+  for (const distance of [-1, -.5, .5, 1]) {
+    fragment.append(element('line', { x1: x(distance), x2: x(distance), y1: top, y2: endY, class: 'side' }));
+  }
+  fragment.append(
+    element('line', { x1: mid, x2: mid, y1: top, y2: endY, class: 'you' }),
+    element('circle', { cx: mid, cy: top, r: 3.2, fill: 'var(--ink)' })
+  );
+  if (nowY !== null) fragment.append(element('line', { x1: 8, x2: width - 8, y1: nowY, y2: nowY, class: 'now-rule' }));
+  const chosen = activeTrack();
+  const tracks = data.relationships.filter(track => track !== chosen);
+  if (chosen) tracks.push(chosen);
+  for (const track of tracks) {
+    const isSelected = track === chosen;
+    const points = track.points.map(([age, distance]) => [x(distance), y(age)]);
+    const [firstX, firstY] = points[0];
+    const [endX, endY] = points.at(-1);
+    let path = `M${firstX},${firstY}`;
+    for (let i = 1; i < points.length; i++) {
+      const [x0, y0] = points[i - 1], [x1, y1] = points[i];
+      // Both time control points stay inside the segment. This makes time linear
+      // in the cubic parameter and lets the curve ease sideways without overshooting.
+      const bend = (y1 - y0) / 3;
+      path += ` C${x0},${y0 + bend} ${x1},${y1 - bend} ${x1},${y1}`;
+    }
+    const group = element('g', { style: `--line:var(--${track.category})`, opacity: chosen && !isSelected ? .46 : 1 });
+    const line = element('path', { d: path, class: `thread${isSelected ? ' selected' : ''}` });
+    if (track.ending === 'fade' && points.length > 1) {
+      const length = track.points.at(-1)[0] - track.points[0][0];
+      const fade = Math.max(1, (endY - firstY) * Math.min(.5, Math.max(.16, Math.min(1.5, length) / length)));
+      const gradient = element('linearGradient', { id: `grad-${track.id}`, gradientUnits: 'userSpaceOnUse', x1: 0, x2: 0, y1: endY - fade, y2: endY });
+      gradient.append(element('stop', { offset: 0, 'stop-color': 'white' }), element('stop', { offset: 1, 'stop-color': 'white', 'stop-opacity': 0 }));
+      const mask = element('mask', { id: `mask-${track.id}`, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width, height });
+      mask.append(element('rect', { x: 0, y: 0, width, height, fill: `url(#grad-${track.id})` }));
+      defs.append(gradient, mask);
+      line.setAttribute('mask', `url(#mask-${track.id})`);
+    }
+    group.append(line, element('circle', { cx: firstX, cy: firstY, r: 3, class: 'start' }));
+    if (track.ending === 'death') group.append(element('circle', { cx: endX, cy: endY, r: 5, class: 'terminal' }));
+    const hit = points.length === 1
+      ? element('circle', { cx: firstX, cy: firstY, r: 10, fill: 'transparent', style: 'pointer-events:all', class: 'hit' })
+      : element('path', { d: path, class: 'hit' });
+    hit.dataset.track = track.id;
+    hit.append(element('title', {}, displayName(track)));
+    group.append(hit);
+    fragment.append(group);
+  }
+  for (const age of ticks) {
+    const label = age === 0 ? 'Birth' : ageText(age);
+    fragment.append(element('text', { x: 8, y: y(age) - 6, class: 'tick', 'pointer-events': 'none' }, label));
+    if (data.birthYear !== null && !(ended && age === max) && !(nowY !== null && age === nowAge)) {
+      fragment.append(element('text', { x: width - 8, y: y(age) - 6, class: 'tick', 'text-anchor': 'end', 'pointer-events': 'none' }, String(data.birthYear + age)));
+    }
+  }
+  if (nowY !== null) {
+    fragment.append(element('text', { x: width - 8, y: nowY - 6, class: 'tick end-label', 'text-anchor': 'end', 'pointer-events': 'none' }, `Now · ${currentYear}`));
+  }
+  if (ended) {
+    fragment.append(
+      element('text', { x: width - 8, y: endY - 6, class: 'tick end-label death-label', 'text-anchor': 'end', 'pointer-events': 'none' }, `Death · ${data.endYear}`),
+      element('circle', { cx: mid, cy: endY, r: 5, class: 'terminal', 'pointer-events': 'none' })
+    );
+  }
+  if (chosen) chosen.points.forEach(([age, distance], i) => {
+    const role = chosen.points.length === 1 ? 'Start and end' : i === 0 ? 'Start' : i === chosen.points.length - 1 ? 'End' : 'Point';
+    const terminal = i === chosen.points.length - 1 && chosen.ending === 'death';
+    const handle = element('g', {
+      class: 'handle', tabindex: 0, role: 'button',
+      'aria-label': `${displayName(chosen)}, ${role.toLowerCase()}, ${ageText(age)}, distance ${distance}`,
+      'data-track': chosen.id, 'data-point': i, style: `--line:var(--${chosen.category})`
+    });
+    handle.append(
+      element('circle', { cx: x(distance), cy: y(age), r: 12, fill: 'transparent' }),
+      element('circle', { cx: x(distance), cy: y(age), r: terminal ? 5.2 : 4.25, class: `knob${terminal ? ' terminal' : ''}`, 'pointer-events': 'none' }),
+      element('title', {}, `${displayName(chosen)} · ${role} · ${ageText(age)}`)
+    );
+    fragment.append(handle);
+  });
+  svg.replaceChildren(fragment);
+  if (restoreFocus !== undefined) svg.querySelector(`[data-point="${restoreFocus}"]`)?.focus();
+}
+function render() {
+  const track = activeTrack();
+  const started = data.birthYear !== null;
+  $('birth').value = data.birthYear ?? '';
+  $('birth').disabled = editUnavailable;
+  $('save').disabled = !started;
+  $('undo').disabled = !history.length;
+  document.querySelector('.tools').inert = loadingEdit || saving;
+  document.querySelector('.workspace').inert = editUnavailable || saving;
+  $('hint').hidden = !!data.relationships.length;
+  const title = document.createElement('strong');
+  const helper = document.createElement('small');
+  title.textContent = started ? 'Start with one person.' : 'Every timeline begins at birth.';
+  helper.textContent = started ? 'Tap anywhere on the graph to add a relationship at that age and distance.' : 'Choose a birth year above to draw a timeline.';
+  $('hint').replaceChildren(title, helper);
+  $('editor').hidden = !track;
+  if (track) {
+    const type = relationshipType(track);
+    const name = displayName(track, type);
+    $('kind-label').textContent = [categories[track.category].label, type === name ? '' : type].filter(Boolean).join(' · ');
+    $('person-label').textContent = name;
+    const startAge = wholeAge(track.points[0][0]);
+    const endAge = wholeAge(track.points.at(-1)[0]);
+    $('span-label').textContent = startAge === endAge ? ageText(startAge) : `Ages ${startAge}–${endAge}`;
+    $('ending').value = track.ending;
+    $('ending-help').textContent = track.ending === 'ongoing' ? 'This line reaches the timeline’s end age.' : 'Drag the last point to choose when the relationship ends.';
+  }
+  const list = $('relationships');
+  list.replaceChildren();
+  $('empty-list').hidden = !!data.relationships.length;
+  for (const person of data.relationships) {
+    const row = document.createElement('li');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.setAttribute('aria-pressed', String(person.id === selected));
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.style.setProperty('--line', `var(--${person.category})`);
+    button.append(swatch, document.createTextNode(displayName(person)));
+    button.addEventListener('click', () => {
+      selected = selected === person.id ? null : person.id;
+      render();
+      const i = data.relationships.indexOf(person);
+      list.children[i]?.firstElementChild.focus();
+    });
+    row.append(button);
+    list.append(row);
+  }
+  renderPlot();
+  renderSharing();
+}
+const observer = new ResizeObserver(() => renderPlot());
+observer.observe(svg);
+
+function locate(event, bounded = true) {
+  const rect = svg.getBoundingClientRect();
+  const pointerY = event.clientY - rect.top;
+  const age = (pointerY - chart.top) / (chart.bottom - chart.top) * chart.max;
+  const distance = (event.clientX - rect.left - chart.mid) / chart.spread;
+  return bounded ? [round(clamp(age, 0, chart.max)), round(clamp(distance, -1, 1))] : [age, distance];
+}
+function interpolatedDistance([startAge, startDistance], [endAge, endDistance], age) {
+  const progress = (age - startAge) / (endAge - startAge);
+  const smooth = progress * progress * (3 - 2 * progress);
+  return round(startDistance + (endDistance - startDistance) * smooth);
+}
+function addPoint(track, age) {
+  const points = track.points;
+  if (points.length >= 500) return -1;
+  const i = points.findIndex(point => point[0] > age);
+  if (i < 1) return -1;
+  const before = points[i - 1], after = points[i];
+  if (after[0] - before[0] < 2 * gap - 1e-9) return -1;
+  const start = round(before[0] + gap), end = round(after[0] - gap);
+  const pointAge = clamp(age, start, end);
+  points.splice(i, 0, [pointAge, interpolatedDistance(before, after, pointAge)]);
+  return i;
+}
+function movePoint(track, i, age, distance, originalEnding) {
+  const points = track.points;
+  const first = i === 0;
+  const last = i === points.length - 1;
+  const min = first ? 0 : round(points[i - 1][0] + gap);
+  const max = last ? chart.max : round(points[i + 1][0] - gap);
+  const wasOngoing = originalEnding === 'ongoing';
+  if (last && wasOngoing && points.length > 1) {
+    const verticalTolerance = 4 * chart.max / (chart.bottom - chart.top);
+    track.ending = Math.abs(distance) >= .93 || age < max - verticalTolerance ? 'fade' : 'ongoing';
+    if (track.ending === 'ongoing') age = max;
+  } else if (first && last && wasOngoing) age = max;
+  points[i] = [round(clamp(age, min, max)), round(clamp(distance, -1, 1))];
+}
+svg.addEventListener('pointerdown', event => {
+  if (event.button !== 0 || !event.isPrimary || drag) return;
+  const hit = event.target.closest('[data-track]');
+  const track = hit && data.relationships.find(item => item.id === hit.dataset.track);
+  const point = hit?.dataset.point;
+  if (track) {
+    event.preventDefault();
+    svg.setPointerCapture(event.pointerId);
+  }
+  drag = {
+    id: event.pointerId, x: event.clientX, y: event.clientY, place: locate(event), origin: locate(event, false),
+    track, index: point === undefined ? -1 : Number(point),
+    before: track ? clone(data) : null, selection: selected, ending: track?.ending, moved: false
+  };
+  if (track) {
+    selected = track.id;
+    svg.classList.add('dragging');
+  }
+});
+svg.addEventListener('pointermove', event => {
+  if (!drag || drag.id !== event.pointerId) return;
+  if (!drag.moved) {
+    if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
+    drag.moved = true;
+    if (drag.track && drag.index === -1) {
+      const age = drag.place[0];
+      const point = drag.track.points;
+      if (age <= point[0][0]) drag.index = 0;
+      else if (age >= point.at(-1)[0]) drag.index = point.length - 1;
+      else drag.index = addPoint(drag.track, age);
+    }
+    if (drag.track && drag.index !== -1) {
+      drag.grab = drag.track.points[drag.index].map((value, i) => value - drag.origin[i]);
+    }
+  }
+  if (drag.track && drag.index !== -1) {
+    const [age, distance] = locate(event, false).map((value, i) => value + drag.grab[i]);
+    movePoint(drag.track, drag.index, age, distance, drag.ending);
+    renderPlot();
+  }
+});
+function finish(event, cancelled) {
+  if (!drag || drag.id !== event.pointerId) return;
+  const gesture = drag;
+  drag = null;
+  svg.classList.remove('dragging');
+  if (gesture.track) {
+    if (cancelled) {
+      data = gesture.before;
+      selected = gesture.selection;
+      render();
+      return;
+    }
+    const points = gesture.track.points;
+    if (!gesture.moved && gesture.index > 0 && gesture.index < points.length - 1) points.splice(gesture.index, 1);
+    if (JSON.stringify(data) !== JSON.stringify(gesture.before)) {
+      remember(gesture.before, gesture.selection);
+      commit();
+    } else render();
+  } else if (!cancelled && !gesture.moved) {
+    if (data.birthYear === null) {
+      $('birth').focus();
+      status('Choose a birth year to start drawing.');
+    } else openPersonDialog(null, gesture.place);
+  }
+}
+svg.addEventListener('pointerup', event => finish(event, false));
+svg.addEventListener('pointercancel', event => finish(event, true));
+svg.addEventListener('lostpointercapture', event => finish(event, true));
+svg.addEventListener('pointerleave', event => {
+  if (drag && !drag.track) finish(event, true);
+});
+svg.addEventListener('keydown', event => {
+  const handle = event.target.closest('[data-point]');
+  const track = activeTrack();
+  if (!handle || !track) return;
+  const index = Number(handle.dataset.point);
+  const points = track.points;
+  const [age, distance] = points[index];
+  const direction = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[event.key];
+  if (direction) {
+    event.preventDefault();
+    const snapshot = clone(data);
+    const delta = event.shiftKey ? 5 : 1;
+    movePoint(track, index, age + direction[0] * delta, distance + direction[1] * delta * .025, track.ending);
+    if (JSON.stringify(data) !== JSON.stringify(snapshot)) {
+      remember(snapshot);
+      commit();
+      svg.querySelector(`[data-point="${index}"]`)?.focus();
+    }
+  } else if (['Delete', 'Backspace', 'Enter', ' '].includes(event.key) && index > 0 && index < points.length - 1) {
+    event.preventDefault();
+    remember();
+    points.splice(index, 1);
+    commit();
+    svg.querySelector(`[data-point="${index}"]`)?.focus();
+  }
+});
+
+for (const [key, { label }] of Object.entries(categories)) $('category').add(new Option(label, key));
+function setRelationshipTypes(selectedType) {
+  const { types } = categories[$('category').value];
+  const options = types.map(type => new Option(type, type));
+  if (selectedType !== undefined && !types.includes(selectedType)) {
+    options.unshift(new Option(selectedType || 'Unspecified', selectedType));
+  }
+  $('subtype').replaceChildren(...options);
+  $('subtype').value = selectedType ?? types[0];
+}
+$('category').addEventListener('change', () => setRelationshipTypes());
+function openPersonDialog(track, place) {
+  if (!track && data.relationships.length >= 100) return status('This timeline already has 100 relationships.', true);
+  dialogContext = { track, place };
+  $('dialog-title').textContent = track ? 'Edit relationship' : 'Add a relationship';
+  $('dialog-age').textContent = ageText(track ? track.points[0][0] : place[0]);
+  $('person-submit').textContent = track ? 'Save details' : 'Add relationship';
+  $('person-name').value = track?.name ?? '';
+  $('category').value = track?.category ?? 'family';
+  setRelationshipTypes(track?.subtype);
+  $('person-dialog').showModal();
+  $('category').focus();
+}
+$('cancel').addEventListener('click', () => $('person-dialog').close());
+$('edit').addEventListener('click', () => {
+  const track = activeTrack();
+  if (track) openPersonDialog(track);
+});
+$('person-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!dialogContext) return;
+  const name = $('person-name').value.trim();
+  remember();
+  const fields = { name, category: $('category').value, subtype: $('subtype').value.trim() };
+  let { track, place } = dialogContext;
+  if (track) Object.assign(track, fields);
+  else {
+    const max = horizon(data);
+    const points = [place];
+    if (place[0] < max) points.push([max, place[1]]);
+    const id = typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : `track-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    track = { id, ...fields, ending: 'ongoing', points };
+    data.relationships.push(track);
+  }
+  selected = track.id;
+  $('person-dialog').close();
+  commit();
+});
+$('ending').addEventListener('change', () => {
+  const track = activeTrack();
+  if (!track || track.ending === $('ending').value) return;
+  remember();
+  track.ending = $('ending').value;
+  if (track.ending === 'ongoing') {
+    const max = horizon(data);
+    if (track.points.length > 1) track.points.at(-1)[0] = max;
+    else if (track.points[0][0] < max) track.points.push([max, track.points[0][1]]);
+  }
+  commit();
+});
+$('remove').addEventListener('click', () => {
+  if (!activeTrack()) return;
+  remember();
+  data.relationships = data.relationships.filter(track => track.id !== selected);
+  selected = null;
+  commit('Relationship removed. Use Undo to restore it.');
+});
+$('undo').addEventListener('click', undo);
+document.addEventListener('keydown', event => {
+  if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z' &&
+      !event.target.closest('input,select,dialog') && history.length) {
+    event.preventDefault();
+    undo();
+  }
+});
+$('load').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', async () => {
+  const file = $('file').files[0];
+  $('file').value = '';
+  if (!file) return;
+  try {
+    if (file.size > 2_000_000) throw new Error('Choose a timeline JSON file smaller than 2 MB.');
+    const next = validate(JSON.parse(await file.text()));
+    if (saving) throw new Error('Wait for the current save to finish before importing.');
+    remember();
+    history.at(-1).restoreRemote = remote;
+    remote = null;
+    editUnavailable = false;
+    linksVisible = null;
+    $('share-result').textContent = '';
+    syncEditingURL();
+    data = next;
+    selected = null;
+    commit('Timeline imported. Use Undo to return to your previous draft.');
+  } catch (error) {
+    status(error instanceof SyntaxError ? 'This file does not contain valid JSON.' : error.message, true);
+  }
+});
+$('save').addEventListener('click', () => {
+  if (data.birthYear === null) return;
+  const file = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(file);
+  link.href = url;
+  link.download = 'the-people-we-keep-timeline.json';
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  status('Timeline exported as JSON.');
+});
+function syncEditingURL() {
+  const url = remote ? ClosenessAPI.timelineURL(remote.editId) : ClosenessAPI.pageURL('creator.html');
+  if (location.href === String(url)) return;
+  if (!document.querySelector('base')) {
+    const base = document.createElement('base');
+    base.href = ClosenessAPI.pageURL('creator.html').href;
+    document.head.append(base);
+  }
+  window.history.replaceState(null, '', url);
+}
+
+function hasUnsavedChanges() {
+  return remote && remote.snapshot !== JSON.stringify(data);
+}
+
+function renderSharing() {
+  const ready = !editUnavailable && !saving && data.birthYear !== null && data.relationships.length > 0;
+  $('share').disabled = $('editing-link').disabled = !ready;
+  const state = $('share-state');
+  state.textContent = '';
+  if (hasUnsavedChanges()) {
+    state.textContent = remote.published
+      ? 'This shared timeline has unsaved changes. Saving also updates its Gallery version.'
+      : 'This timeline has unsaved changes. Use Editing link to save them or Share to add it to the Gallery.';
+  }
+  const list = $('timeline-links');
+  list.hidden = !remote || !linksVisible;
+  if (list.hidden) list.replaceChildren();
+}
+
+function displayLinks(showAll) {
+  linksVisible = showAll ? 'all' : 'edit';
+  const list = $('timeline-links');
+  const options = [['Editing link', remote.editId]];
+  if (showAll && remote.published) options.push(['With names', remote.viewId], ['Without names', remote.publicId]);
+  list.replaceChildren();
+  for (const [label, id] of options) {
+    const group = document.createElement('div');
+    const term = document.createElement('dt');
+    term.className = 'label';
+    term.textContent = label;
+    const definition = document.createElement('dd');
+    const link = document.createElement('a');
+    link.className = 'fine';
+    link.href = ClosenessAPI.timelineURL(id);
+    link.textContent = link.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Copy';
+    button.setAttribute('aria-label', label === 'Editing link' ? 'Copy editing link' : `Copy link ${label.toLowerCase()}`);
+    button.addEventListener('click', () => copyTimelineLink(link));
+    definition.append(link, button);
+    group.append(term, definition);
+    list.append(group);
+  }
+  list.hidden = false;
+}
+
+async function copyTimelineLink(link, message = 'Link copied.') {
+  try {
+    await navigator.clipboard.writeText(link.href);
+    $('share-result').textContent = message;
+  } catch {
+    const range = document.createRange();
+    range.selectNodeContents(link);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    $('share-result').textContent = 'Link selected. Copy it with your browser.';
+  }
+}
+
+async function copySavedLink(publish) {
+  const url = ClosenessAPI.timelineURL(publish ? remote.viewId : remote.editId);
+  const link = [...$('timeline-links').querySelectorAll('a')].find(item => item.href === url);
+  if (link) await copyTimelineLink(link, publish ? 'Share link copied. Gallery version has no names.' : 'Editing link copied. Keep it private.');
+}
+
+function beginDeferredCopy(message) {
+  if (!navigator.clipboard?.write || !window.ClipboardItem) return null;
+  let resolveText;
+  let rejectText;
+  const text = new Promise((resolve, reject) => { resolveText = resolve; rejectText = reject; });
+  text.catch(() => {});
+  try {
+    const blob = text.then(value => new Blob([value], { type: 'text/plain' }));
+    blob.catch(() => {});
+    const write = navigator.clipboard.write([
+      new ClipboardItem({ 'text/plain': blob })
+    ]).then(() => true, () => false);
+    return {
+      resolve(url) {
+        resolveText(url);
+        return write.then(copied => { if (copied) $('share-result').textContent = message; return copied; });
+      },
+      reject(error) {
+        rejectText(error);
+        write.catch(() => {});
+      }
+    };
+  } catch {
+    return null;
+  }
+}
+
+function binding(result, snapshot) {
+  const { editId, viewId, publicId, revision, published } = result;
+  const ids = [editId, viewId, publicId];
+  if (!ids.every(ClosenessAPI.validId) || new Set(ids).size !== 3 || !Number.isInteger(revision) || typeof published !== 'boolean') {
+    throw new Error('The timeline service returned an incomplete link.');
+  }
+  return { editId, viewId, publicId, revision, published, snapshot };
+}
+
+async function saveLink(publish) {
+  if (saving || editUnavailable || data.birthYear === null || !data.relationships.length) return;
+  const resultText = $('share-result');
+  if (remote && !hasUnsavedChanges() && (!publish || remote.published)) {
+    displayLinks(publish);
+    await copySavedLink(publish);
+    return;
+  }
+  const snapshot = JSON.stringify(data);
+  const deferredCopy = beginDeferredCopy(publish ? 'Share link copied. Gallery version has no names.' : 'Editing link copied. Keep it private.');
+  saving = true;
+  resultText.textContent = publish ? 'Sharing this timeline…' : 'Saving this timeline…';
+  render();
+  try {
+    const result = await ClosenessAPI.save(JSON.parse(snapshot), {
+      editId: remote?.editId,
+      revision: remote?.revision,
+      publish: publish ? true : remote?.published ? undefined : false
+    });
+    remote = binding(result, snapshot);
+    syncEditingURL();
+    displayLinks(publish);
+    if (deferredCopy) {
+      const copied = await deferredCopy.resolve(ClosenessAPI.timelineURL(publish ? remote.viewId : remote.editId));
+      if (copied !== true) await copySavedLink(publish);
+    } else {
+      await copySavedLink(publish);
+    }
+  } catch (error) {
+    deferredCopy?.reject(error);
+    resultText.textContent = error.message;
+  } finally {
+    saving = false;
+    render();
+  }
+}
+
+async function loadEditingLink() {
+  try {
+    const result = await ClosenessAPI.load(requestedEditId);
+    if (result.mode !== 'edit') throw new Error('This link only allows viewing.');
+    const loaded = validate(result.timeline);
+    remote = binding({ ...result, ...result.links }, JSON.stringify(loaded));
+    data = loaded;
+    editUnavailable = false;
+    syncEditingURL();
+    status('Timeline loaded from your editing link.');
+  } catch (error) {
+    status(error.message, true);
+  } finally {
+    loadingEdit = false;
+    render();
+  }
+}
+
+$('share').addEventListener('click', () => saveLink(true));
+$('editing-link').addEventListener('click', () => saveLink(false));
+window.addEventListener('beforeunload', event => {
+  const detachedUnsaved = !keepLocalDraft && !remote && data.birthYear !== null;
+  if (!hasUnsavedChanges() && !detachedUnsaved) return;
+  event.preventDefault();
+  event.returnValue = true;
+});
+render();
+if (!keepLocalDraft) loadEditingLink();
+</script>
+</body>
+</html>

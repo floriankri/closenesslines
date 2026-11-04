@@ -4,32 +4,41 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="An illustrated timeline of the people who come close, drift away, and come back across one fictional life.">
-<title>The People We Keep</title>
+<title>The People We Keep · Closeness Lines</title>
+<link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml">
+<link rel="stylesheet" href="./site.css">
 <style>
 :root{--paper:#f7f4eb;--ink:#24241f;--muted:#5f5a51;--rule:#d4cec0;--accent:#a33d2d;--ui:system-ui,sans-serif;--serif:Georgia,serif}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--serif)}a{color:inherit}a:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 .wrap{width:min(1120px,calc(100% - 48px));margin-inline:auto}
-.masthead,.eyebrow,.guide,.folio,.chapter-age,.credit,.jump,.selection{font:600 .7rem/1.5 var(--ui);letter-spacing:.14em;text-transform:uppercase}
-.masthead{display:flex;justify-content:space-between;border-bottom:1px solid var(--ink);padding:22px 0;gap:12px}.masthead span:last-child{color:var(--muted)}
-.hero{min-height:530px;padding:88px 0 70px;display:grid;grid-template-columns:1fr .95fr;align-items:center;gap:clamp(20px,5vw,72px)}.eyebrow,.chapter-age{color:var(--accent)}h1,h2,p{margin:0}h1{font-size:clamp(3.4rem,8vw,7.3rem);line-height:.87;font-weight:400;letter-spacing:-.076em;margin:18px 0 25px}h1 em{font-weight:400}.intro{color:var(--muted);font-size:clamp(1.08rem,2vw,1.35rem);line-height:1.55;max-width:390px}.jump{display:inline-block;margin-top:24px;text-decoration:none;border-bottom:1px solid;padding-bottom:4px}.hero figure{margin:0}.hero svg{width:100%;display:block}.folio{color:var(--muted);text-align:right;margin-top:13px}
+.eyebrow,.guide,.folio,.chapter-age,.credit,.jump,.selection{font:600 .7rem/1.5 var(--ui);letter-spacing:.14em;text-transform:uppercase}
+.hero{min-height:530px;padding:88px 0 70px;display:grid;grid-template-columns:1fr .95fr;align-items:center;gap:clamp(20px,5vw,72px)}.eyebrow,.chapter-age{color:var(--accent)}h1,h2,p{margin:0}h1{font-size:clamp(3.4rem,8vw,7.3rem);line-height:.87;font-weight:400;letter-spacing:-.076em;margin:18px 0 25px}h1 em{font-weight:400}.intro{color:var(--muted);font-size:clamp(1.08rem,2vw,1.35rem);line-height:1.55;max-width:390px}.jump{display:inline-block;margin-top:24px;text-decoration:none;border-bottom:1px solid;padding-bottom:4px}.hero figure{margin:0}.hero svg{width:100%;display:block}.folio{color:var(--muted);text-align:center;margin-top:13px}
 .reader{border-block:1px solid var(--rule)}.reader summary{padding:13px 0;cursor:pointer;font:600 .78rem/1.5 var(--ui)}.reader p{max-width:660px;padding-bottom:15px;font-size:1.05rem;line-height:1.55;color:var(--muted)}.death-ring{display:inline-block;width:.67em;height:.67em;border:1px solid var(--accent);border-radius:50%;vertical-align:.04em}
 .guide select{display:block;max-width:100%;width:100%;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:2px;padding:5px;font:600 .76rem var(--ui)}.guide select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .guide{position:sticky;top:0;z-index:2;background:var(--paper);border-block:1px solid var(--ink);display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);color:var(--muted)}.guide>div{padding:10px 0}.guide>div:first-child{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px}.guide strong{color:var(--paper);background:var(--ink);border-radius:2px;padding:4px 7px;white-space:nowrap}.direction{font-size:.62rem;letter-spacing:.035em}.legend{list-style:none;display:flex;gap:8px 17px;flex-wrap:wrap;margin:0;padding:12px 0;font:600 .76rem/1.4 var(--ui)}.legend li::before{content:"";display:inline-block;width:13px;border-top:2px solid var(--line);vertical-align:middle;margin-right:6px}.guide>div:last-child{border-left:1px solid var(--rule);padding-left:22px}.selection{display:block;margin-top:2px;letter-spacing:0;text-transform:none;color:var(--ink)}
 .atlas{position:relative}.atlas svg{position:absolute;inset:0 auto 0 0;width:62.96%;height:100%;overflow:hidden}.chapter{display:grid;grid-template-columns:1.7fr 1fr;position:relative;pointer-events:none}.chapter article{grid-column:2;border-left:1px solid var(--rule);padding:13px 0 0 22px;min-width:0}.chapter h2{font-weight:400;font-size:clamp(1.38rem,3.3vw,2.6rem);line-height:1.03;letter-spacing:-.045em;margin:4px 0 9px}.chapter p:last-child{color:var(--muted);font-size:clamp(.87rem,1.7vw,1.1rem);line-height:1.43;max-width:320px}.chapter-age{letter-spacing:.09em}
 .family{--line:#4f6e85}.friends{--line:#3e725f}.work{--line:#846629}.partner{--line:#9c4c59}.pet{--line:#765f8d}
 .plot-rule{stroke:var(--rule);stroke-width:1;opacity:.65}.you{stroke:var(--ink);stroke-width:2.7;fill:none}.thread{fill:none;stroke:var(--line);stroke-linecap:round;stroke-width:1.45;opacity:.76}.thread.hit{stroke:transparent;stroke-width:12;opacity:1;cursor:pointer}.thread.dim,.terminal.dim,.start.dim{opacity:.12}.thread.active{opacity:1;stroke-width:2.55}.terminal.active{opacity:1}.terminal{stroke:var(--accent);fill:var(--paper);stroke-width:1.2;pointer-events:none}.start{fill:var(--line);pointer-events:none}
-.closing{padding:62px 0;border-top:1px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;gap:20px}.closing p{font-style:italic;font-size:clamp(1.5rem,4vw,3rem);letter-spacing:-.04em}.closing a{white-space:nowrap}.credit{border-top:1px solid var(--rule);padding:18px 0 40px;color:var(--muted);text-transform:none;letter-spacing:.025em}
-@media(max-width:640px){.wrap{width:calc(100% - 28px)}.masthead{font-size:.61rem}.hero{min-height:0;grid-template-columns:1fr;gap:34px;padding:52px 0 36px}.hero svg{max-width:420px;margin:auto}.guide,.chapter{grid-template-columns:1.08fr 1fr}.atlas svg{width:51.92%}.chapter article,.guide>div:last-child{padding-left:10px}.guide{font-size:.58rem}.direction{font-size:.54rem;letter-spacing:0}.guide strong{padding-inline:4px}.chapter h2{overflow-wrap:break-word}.chapter-age{font-size:.62rem}.folio{font-size:.6rem}.closing{display:block}.closing .jump{margin-top:14px}}
+.closing{padding:62px 0;border-top:1px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;gap:20px}.closing p{font-style:italic;font-size:clamp(1.5rem,4vw,3rem);letter-spacing:-.04em}.closing a{white-space:nowrap}.creator-link{display:inline-block;background:var(--accent);color:var(--paper);padding:12px 18px;border:1px solid var(--accent);border-radius:2px;font:650 .8rem/1.5 var(--ui);text-decoration:none}.creator-link:hover{filter:brightness(.9)}.creator-link:focus-visible{outline:2px solid var(--ink);outline-offset:4px}.credit{border-top:1px solid var(--rule);padding:18px 0 40px;color:var(--muted);text-transform:none;letter-spacing:.025em}
+@media(max-width:640px){.wrap{width:calc(100% - 28px)}.hero{min-height:0;grid-template-columns:1fr;gap:34px;padding:52px 0 36px}.hero svg{max-width:420px;margin:auto}.guide,.chapter{grid-template-columns:1.08fr 1fr}.atlas svg{width:51.92%}.chapter article,.guide>div:last-child{padding-left:10px}.guide{font-size:.58rem}.direction{font-size:.54rem;letter-spacing:0}.guide strong{padding-inline:4px}.chapter h2{overflow-wrap:break-word}.chapter-age{font-size:.62rem}.folio{font-size:.6rem}.closing{display:block}.closing .creator-link{margin-top:14px}}
+@media(pointer:coarse){.thread.hit{stroke-width:24}.guide select{min-height:44px}.atlas svg{touch-action:pan-y}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 @media print{.guide{position:static}.jump{display:none}.hero{min-height:0}.chapter{break-inside:avoid}}
+.line-tooltip{position:fixed;z-index:5;max-width:230px;padding:6px 9px;background:var(--paper);border:1px solid var(--rule);border-radius:2px;box-shadow:0 2px 8px #24241f12;font:600 .76rem/1.4 var(--ui);pointer-events:none}.line-tooltip[hidden]{display:none}.thread.hit:focus-visible{outline:none;stroke:var(--line);stroke-opacity:.18;stroke-width:12}
 </style>
 </head>
 <body id="top">
 <main class="wrap">
-<header class="masthead"><span>A visual essay</span><span>One possible life · 0–88</span></header>
+<header class="site-masthead">
+  <a class="site-brand" href="./index.html">Closeness Lines</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="./index.html" aria-current="page">Home</a>
+    <a href="./creator.html">Creator</a>
+    <a href="./gallery.html">Gallery</a>
+  </nav>
+</header>
 <section class="hero" aria-labelledby="title">
 <div>
-<p class="eyebrow">An illustrated timeline</p>
 <h1 id="title">The People<br>We <em>Keep</em></h1>
 <p class="intro">A life traced through the people who come close, drift away, and sometimes find their way back.</p>
 <a class="jump" href="#begin">Start at birth ↓</a>
@@ -49,27 +58,24 @@
 <path d="M151 197q10 10 25 0zm75 3q14 11 30-1zm57-2q14 11 27-1zm43-1q11 10 23-1zM208 192l-2-12 12 1-1 10m48-4-1-11 11 1-1 10M40 261l-5-28h24l-6 28m-6-29q-11-26-8-40 11 8 10 38 9-19 19-22-2 11-18 24m-4 0q-15-8-22-18 15 1 22 18"/>
 </g>
 </svg>
-<figcaption class="folio">Fig. 01 &nbsp; A table, at one moment in time</figcaption>
+<figcaption class="folio">A table, at one moment in time</figcaption>
 </figure>
 </section>
-<details class="reader" id="begin">
-<summary>How to read the lines</summary>
-<p>The straight black line is you, the person whose life we’re following. Scroll down to get older. The nearer a colored line comes to yours, the closer that relationship feels. Both sides mean the same thing. Lines fade as contact dwindles. A thin red circle <span class="death-ring" aria-hidden="true"></span> marks a death. Choose a relationship to follow its line, or tap a line as you scroll.</p>
-</details>
-<ul class="legend" aria-label="Relationship colors">
+<ul class="legend" id="begin" aria-label="Relationship colors">
 <li class="family">Family</li><li class="friends">Friends</li><li class="partner">Romance</li><li class="work">Work</li><li class="pet">Dog</li>
 </ul>
 <div class="guide"><div><span class="direction">← Farther</span><strong>You ↓</strong><span class="direction">Farther →</span></div><div><select aria-label="Choose a relationship to trace"></select><span class="selection" aria-live="polite"></span></div></div>
 <div class="atlas">
-<svg id="lines" role="img" aria-labelledby="lines-title"><title id="lines-title">Closeness lines from birth to age 88</title></svg>
+<svg id="lines" role="group" aria-labelledby="lines-title"><title id="lines-title">Closeness lines from birth to age 88</title></svg>
 <div id="chapters"></div>
 </div>
 <noscript><p>Enable JavaScript to display the timeline.</p></noscript>
 <footer>
-<div class="closing"><p>There’s still a chair at the table.</p><a href="#top" class="jump">Back to the beginning ↑</a></div>
+<div class="closing" id="create-yours"><p>Create yours.</p><a href="creator.html" class="creator-link">Open the creator →</a></div>
 <p class="credit">An imagined life. Ages and closeness are illustrative. Inspired by <a href="https://www.oliviaderecat.com/shop/p/closeness-lines-print"><cite>Closeness Lines Over Time</cite></a> by Olivia de Recat.</p>
 </footer>
 </main>
+<div class="line-tooltip" id="line-tooltip" role="tooltip" hidden></div>
 <script>
 const chapters = [
   [0, 'The first room', 'Mum and Dad are the whole world. At four, a friend down the street starts knocking.'],
@@ -125,6 +131,17 @@ const selection = document.querySelector('.selection');
 const ns = 'http://www.w3.org/2000/svg';
 let selected = null;
 let marks = [];
+const tooltip = document.querySelector('#line-tooltip');
+function hideTooltip() { tooltip.hidden = true; }
+function showTooltip(name, x, y) {
+  tooltip.textContent = name;
+  tooltip.hidden = false;
+  tooltip.style.left = `${Math.max(8, Math.min(x + 12, innerWidth - tooltip.offsetWidth - 8))}px`;
+  tooltip.style.top = `${Math.max(8, Math.min(y + 12, innerHeight - tooltip.offsetHeight - 8))}px`;
+}
+window.addEventListener('scroll', hideTooltip, {passive:true});
+document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTooltip(); });
+document.addEventListener('pointerdown', event => { if (!event.target.closest('.hit')) hideTooltip(); });
 
 for (const [age, title, story] of chapters) {
   const section = document.createElement('section');
@@ -163,6 +180,7 @@ function shape(tag, attributes) {
 }
 
 function render() {
+  hideTooltip();
   const width = svg.clientWidth;
   const sections = [...timeline.children];
   const compact = width < 300;
@@ -237,11 +255,24 @@ function render() {
     const nodes = [line, start];
     if (death) nodes.push(shape('circle', {cx: lastX, cy: lastY, r: 3.7, class: `terminal ${kind}`}));
     svg.append(...nodes);
-    const hit = shape('path', {d: path, class: 'thread hit', 'aria-hidden': 'true'});
-    const title = shape('title', {});
-    title.textContent = name;
-    hit.append(title);
-    hit.addEventListener('click', () => choose(index));
+    const hit = shape('path', {d: path, class: 'thread hit', tabindex: '0', role: 'button', 'aria-label': name});
+    const showAtStart = () => {
+      const box = svg.getBoundingClientRect();
+      showTooltip(name, box.left + firstX, Math.max(72, Math.min(innerHeight - 60, box.top + firstY)));
+    };
+    hit.addEventListener('pointermove', event => showTooltip(name, event.clientX, event.clientY));
+    hit.addEventListener('pointerleave', hideTooltip);
+    hit.addEventListener('click', event => {
+      choose(index);
+      showTooltip(name, event.clientX, event.clientY);
+    });
+    hit.addEventListener('focus', showAtStart);
+    hit.addEventListener('blur', hideTooltip);
+    hit.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault(); choose(index); showAtStart();
+      }
+    });
     hits.push(hit);
     return {nodes};
   });

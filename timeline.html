@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Timeline · Closeness Lines</title>
+<script>
+  const routeParts = location.pathname.match(/^(.*\/)t\/([^/]+)\/?$/);
+  const base = document.createElement('base');
+  const siteRoot = new URL('./', location.href);
+  if (routeParts) siteRoot.pathname = routeParts[1];
+  base.href = siteRoot.href;
+  document.head.append(base);
+</script>
+<link rel="icon" href="./favicon.svg?v=2" type="image/svg+xml">
+<link rel="stylesheet" href="./site.css">
+<style>
+:root{color-scheme:light;--paper:#f7f4eb;--ink:#24241f;--muted:#5f5a51;--rule:#d4cec0;--accent:#a33d2d;--ui:system-ui,sans-serif;--serif:Georgia,serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:1rem/1.5 var(--serif)}
+.wrap{width:min(1080px,calc(100% - 48px));margin:auto}
+a{color:inherit;text-underline-offset:.28em}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.heading{padding:24px 0 17px}
+h1,p{margin:0}
+.axis,.label{font:650 .68rem/1.5 var(--ui);letter-spacing:.12em;text-transform:uppercase}
+.status{margin-bottom:12px;color:var(--muted);font:500 .84rem/1.55 var(--ui)}
+.axis{display:grid;grid-template-columns:1fr auto 1fr;gap:4px;align-items:center;text-align:center;padding:9px 8px;border-block:1px solid var(--rule);color:var(--muted)}
+.axis strong{border-radius:2px;background:var(--ink);color:var(--paper);padding:4px 8px}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,250px);border-bottom:1px solid var(--ink);margin-bottom:24px}
+svg{display:block;width:100%;height:680px}
+.sidebar{border-left:1px solid var(--rule);padding:16px 0 20px 16px;min-width:0}
+.sidebar .label{color:var(--accent)}
+#lines{list-style:none;padding:6px 0 0;margin:0}
+#lines button{display:flex;gap:8px;align-items:center;width:100%;padding:8px 7px;min-height:36px;text-align:left;background:none;color:inherit;border:1px solid transparent;border-radius:2px;font:500 .87rem/1.35 var(--ui);overflow-wrap:anywhere;cursor:pointer}
+#lines button:hover,#lines button[aria-pressed="true"]{border-color:var(--rule);background:#f0ebde}
+.swatch{flex:none;width:13px;border-top:2px solid currentColor}
+[hidden]{display:none!important}
+@media(max-width:680px){
+  .wrap{width:calc(100% - 28px)}
+  .workspace{grid-template-columns:minmax(0,1fr)}
+  .sidebar{border-left:0;border-top:1px solid var(--rule);padding-left:0}
+  #lines{display:flex;flex-wrap:wrap}
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="site-masthead">
+  <a class="site-brand" href="./index.html">Closeness Lines</a>
+  <nav class="site-nav" aria-label="Main navigation">
+    <a href="./index.html">Home</a>
+    <a href="./creator.html">Creator</a>
+    <a href="./gallery.html">Gallery</a>
+  </nav>
+</header>
+<div class="heading"><h1 class="site-title">Timeline</h1></div>
+<p class="status" id="status" role="status">Loading timeline…</p>
+<div id="viewer" class="workspace" hidden>
+  <section aria-label="Timeline">
+    <div class="axis"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span></div>
+    <svg id="timeline-plot" role="img" aria-label="Closeness graph. Age increases from top to bottom."></svg>
+  </section>
+  <aside class="sidebar">
+    <p class="label" id="line-heading">Relationships</p>
+    <ul id="lines" aria-labelledby="line-heading"></ul>
+  </aside>
+</div>
+<noscript><p>Enable JavaScript to open this timeline.</p></noscript>
+</main>
+<script src="./config.js"></script>
+<script src="./api.js"></script>
+<script src="./timeline-plot.js"></script>
+<script>
+'use strict';
+
+async function openTimeline() {
+  const status = document.getElementById('status');
+  const id = routeParts?.[2] ?? new URLSearchParams(location.search).get('timeline');
+  try {
+    const result = await ClosenessAPI.load(id);
+    if (result.mode === 'edit') {
+      location.replace(ClosenessAPI.pageURL('creator.html', { edit: id }));
+      return;
+    }
+    if (!['view', 'public'].includes(result.mode)) throw new Error('This timeline could not be opened.');
+    const named = result.mode === 'view';
+    const lines = named ? ClosenessPlot.namedLines(result.timeline) : ClosenessPlot.publicLines(result.lines);
+    const ending = named ? result.timeline.endMode : 'snapshot';
+    const viewer = document.getElementById('viewer');
+    const plot = document.getElementById('timeline-plot');
+    const list = document.getElementById('lines');
+    document.getElementById('line-heading').textContent = named ? 'Relationships' : 'Relationship types';
+    let selected = null;
+    const buttons = [];
+    const draw = () => ClosenessPlot.render(plot, { age: result.age, lines, ending, selected });
+    lines.forEach((line, index) => {
+      const item = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('aria-pressed', 'false');
+      const swatch = document.createElement('span');
+      swatch.className = 'swatch';
+      if (/^#[0-9a-f]{6}$/i.test(line.color)) swatch.style.color = line.color;
+      button.append(swatch, document.createTextNode(line.label || 'Relationship'));
+      button.addEventListener('click', () => {
+        selected = selected === index ? null : index;
+        buttons.forEach((control, i) => control.setAttribute('aria-pressed', String(i === selected)));
+        draw();
+      });
+      buttons.push(button);
+      item.append(button);
+      list.append(item);
+    });
+    viewer.hidden = false;
+    status.hidden = true;
+    if (!routeParts) history.replaceState(null, '', ClosenessAPI.timelineURL(id));
+    draw();
+    new ResizeObserver(draw).observe(plot);
+  } catch (error) {
+    status.hidden = false;
+    status.textContent = error.message;
+  }
+}
+openTimeline();
+</script>
+</body>
+</html>

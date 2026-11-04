@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>Page not found · Closeness Lines</title>
+<script>
+  const route = location.pathname.match(/^(.*\/)t\/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})\/?$/i);
+  if (route) {
+    const page = new URL(location.origin);
+    page.pathname = route[1] + 'timeline.html';
+    page.searchParams.set('timeline', route[2]);
+    location.replace(page);
+  }
+</script>
+</head>
+<body>
+<h1>Page not found</h1>
+<p><a href="/">Back to Closeness Lines</a></p>
+</body>
+</html>

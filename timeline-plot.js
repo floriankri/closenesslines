@@ -1,0 +1,144 @@
+'use strict';
+
+const ClosenessPlot = (() => {
+  const ns = 'http://www.w3.org/2000/svg';
+  const categoryColors = {
+    family: '#4f6e85', friends: '#3e725f', romance: '#9c4c59', work: '#846629', pets: '#765f8d'
+  };
+  const categoryLabels = { family: 'Family member', friends: 'Friend', romance: 'Partner', work: 'Colleague', pets: 'Pet' };
+  let plotId = 0;
+
+  function relationshipType(track, tracks) {
+    const { category, subtype } = track;
+    if (category !== 'family' || (subtype !== 'Sibling' && subtype !== 'Child')) return subtype;
+    const age = track.points[0][0];
+    const sibling = subtype === 'Sibling';
+    if (sibling && age === 0) return 'Older sibling';
+
+    const peerAges = tracks
+      .filter(peer => peer.id !== track.id && peer.category === category && peer.subtype === subtype)
+      .map(peer => peer.points[0][0])
+      .filter(peerAge => !sibling || peerAge > 0);
+    const generic = sibling ? 'Younger sibling' : 'Child';
+    if (!peerAges.length || peerAges.includes(age)) return generic;
+
+    const hasEarlier = peerAges.some(peerAge => peerAge < age);
+    const hasLater = peerAges.some(peerAge => peerAge > age);
+    if (sibling) {
+      if (!hasEarlier) return generic;
+      return hasLater ? 'Middle sibling' : 'Youngest sibling';
+    }
+    if (!hasEarlier) return 'Oldest child';
+    return hasLater ? 'Middle child' : 'Youngest child';
+  }
+
+  function namedLines(timeline) {
+    return timeline.relationships.map(track => ({
+      label: track.name || relationshipType(track, timeline.relationships) || categoryLabels[track.category],
+      color: categoryColors[track.category],
+      ending: track.ending,
+      points: track.points
+    }));
+  }
+
+  function publicLines(lines) {
+    return lines.map(({ type, color, ending, points }) => ({ label: type, color, ending, points }));
+  }
+
+  function node(tag, attributes = {}, value) {
+    const element = document.createElementNS(ns, tag);
+    for (const [key, val] of Object.entries(attributes)) element.setAttribute(key, val);
+    if (value !== undefined) element.textContent = value;
+    return element;
+  }
+
+  function pathFor(points) {
+    let path = `M${points[0][0]} ${points[0][1]}`;
+    for (let i = 1; i < points.length; i++) {
+      const [x0, y0] = points[i - 1];
+      const [x1, y1] = points[i];
+      const bend = (y1 - y0) / 3;
+      path += `C${x0} ${y0 + bend} ${x1} ${y1 - bend} ${x1} ${y1}`;
+    }
+    return path;
+  }
+
+  function fadeMask(defs, id, width, height, from, to) {
+    const gradient = node('linearGradient', { id: `${id}-gradient`, gradientUnits: 'userSpaceOnUse', x1: 0, x2: 0, y1: from, y2: to });
+    gradient.append(
+      node('stop', { offset: 0, 'stop-color': 'white' }),
+      node('stop', { offset: 1, 'stop-color': 'white', 'stop-opacity': 0 })
+    );
+    const mask = node('mask', { id, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width, height });
+    mask.append(node('rect', { width, height, fill: `url(#${id}-gradient)` }));
+    defs.append(gradient, mask);
+  }
+
+  function render(svg, { age, lines, ending = 'snapshot', selected = null, preview = false }) {
+    const width = preview ? 250 : svg.clientWidth || 600;
+    const height = preview ? 170 : svg.clientHeight || 680;
+    const mid = width / 2;
+    const top = preview ? 13 : 30;
+    const bottom = age ? height - (preview ? 13 : 31) : top;
+    const spread = mid - (preview ? 12 : 18);
+    const x = distance => mid + spread * distance;
+    const y = value => age ? top + (bottom - top) * value / age : top;
+    const lineWidth = preview ? 1.4 : 2.1;
+    const prefix = `plot-${++plotId}`;
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    const defs = node('defs');
+    const group = node('g');
+    const text = node('g', { 'font-family': 'system-ui,sans-serif', 'font-size': 10, fill: 'var(--muted, #5f5a51)' });
+    const horizontalRule = (value, stroke) => node('line', { x1: 7, x2: width - 7, y1: y(value), y2: y(value), stroke });
+    const rule = 'var(--rule, #d4cec0)';
+    const ink = 'var(--ink, #24241f)';
+    const accent = 'var(--accent, #a33d2d)';
+    const paper = preview ? '#f0ebdf' : 'var(--paper, #f7f4eb)';
+    group.append(horizontalRule(0, rule));
+    if (!preview) {
+      const step = age > 110 ? 20 : age > 50 ? 10 : age > 20 ? 5 : age > 9 ? 2 : 1;
+      for (let tick = step; tick < age && bottom - y(tick) > 20; tick += step) {
+        group.append(horizontalRule(tick, rule));
+        text.append(node('text', { x: 8, y: y(tick) - 6 }, `Age ${tick}`));
+      }
+      text.append(node('text', { x: 8, y: top - 6 }, 'Birth'));
+      const endText = ending === 'now' ? `Now · Age ${age}` : ending === 'death' ? `Death · Age ${age}` : `Age ${age}`;
+      text.append(node('text', { x: width - 8, y: bottom - 6, 'text-anchor': 'end', 'font-weight': 700, fill: ending === 'death' ? accent : ink }, endText));
+    }
+    if (age) group.append(horizontalRule(age, preview ? rule : ink));
+    group.append(
+      node('line', { x1: mid, x2: mid, y1: top, y2: bottom, stroke: ink, 'stroke-width': preview ? 1.5 : 2.2 }),
+      node('circle', { cx: mid, cy: top, r: preview ? 2 : 3.1, fill: ink })
+    );
+
+    const ordered = lines.map((line, index) => ({ line, index }));
+    if (selected !== null) ordered.push(...ordered.splice(selected, 1));
+    for (const { line, index } of ordered) {
+      const points = line.points.map(([time, distance]) => [x(distance), y(time)]);
+      const [firstX, firstY] = points[0];
+      const [endX, endY] = points.at(-1);
+      const color = /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : ink;
+      const emphasized = selected === index;
+      const thread = node('g', { opacity: selected === null || emphasized ? 1 : .25 });
+      const curve = node('path', { d: pathFor(points), fill: 'none', stroke: color,
+        'stroke-width': lineWidth + (emphasized ? 1 : 0), 'stroke-linecap': 'round' });
+      if (line.ending === 'fade' && points.length > 1) {
+        const span = line.points.at(-1)[0] - line.points[0][0];
+        const fade = Math.max(1, (endY - firstY) * Math.min(.5, Math.max(.16, Math.min(1.5, span) / span)));
+        const id = `${prefix}-fade-${index}`;
+        fadeMask(defs, id, width, height, endY - fade, endY);
+        curve.setAttribute('mask', `url(#${id})`);
+      }
+      thread.append(curve, node('circle', { cx: firstX, cy: firstY, r: preview ? 1.65 : 2.9, fill: color }));
+      if (line.ending === 'death') {
+        thread.append(node('circle', { cx: endX, cy: endY, r: preview ? 2.6 : 4.6, fill: paper, stroke: accent, 'stroke-width': preview ? .85 : 1.5 }));
+      }
+      if (!preview && line.label) thread.append(node('title', {}, line.label));
+      group.append(thread);
+    }
+    if (ending === 'death') group.append(node('circle', { cx: mid, cy: bottom, r: 5, fill: paper, stroke: accent, 'stroke-width': 1.5 }));
+    svg.replaceChildren(defs, group, text);
+  }
+
+  return { node, render, relationshipType, namedLines, publicLines };
+})();
