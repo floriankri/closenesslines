@@ -33,16 +33,16 @@ h2{font-size:1.65rem;font-weight:400;line-height:1.12;letter-spacing:-.03em;over
 .fields input[type="number"]{width:90px}
 #status{min-height:2.25em;padding:7px 0;font:500 .77rem/1.45 var(--ui);color:var(--muted)}
 #status.error,.danger{color:var(--accent)}
-.tools,#status,.workspace,.sharing{max-width:692px;margin-inline:auto}
+.tools,#status,.workspace,.sharing{max-width:760px;margin-inline:auto}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,240px);border-top:1px solid var(--ink)}
-.board{min-width:0;padding-left:32px;max-width:452px;width:100%;margin-inline:auto}
-.event-gutter{position:absolute;left:-32px;top:0;bottom:0;width:28px;padding:0;border:0;border-right:1px dashed var(--rule);color:var(--accent);background:transparent;cursor:crosshair}.event-gutter span{position:absolute;top:12px;left:6px}.event-mark{cursor:ns-resize;touch-action:none}.event-text{font:500 10px var(--ui);fill:var(--accent);paint-order:stroke;stroke:var(--paper);stroke-width:3px}
+.board{min-width:0;padding-left:100px;max-width:520px;width:100%;margin-inline:auto}
+.event-gutter{position:absolute;left:-100px;top:0;bottom:0;width:96px;padding:0;border:0;border-right:1px dashed var(--rule);color:var(--accent);background:transparent;cursor:crosshair}.event-gutter span{position:absolute;top:12px;left:6px}.event-mark{cursor:ns-resize;touch-action:none}.event-text{font:500 9px var(--ui);fill:var(--accent);paint-order:stroke;stroke:var(--paper);stroke-width:3px}
 .axis-key{position:sticky;top:0;z-index:2;background:var(--paper);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px;border-bottom:1px solid var(--rule);padding:9px 8px;color:var(--muted)}
 .axis-key strong{background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:2px}
 .plot{position:relative;min-height:840px}
 .scale-control{display:none}
 @media(min-width:681px) and (pointer:fine){svg#plot{height:var(--plot-height,840px)}.scale-control{display:grid;grid-template-columns:auto minmax(80px,1fr) 2.5em;align-items:center;gap:14px;padding:14px 8px;border-top:1px solid var(--rule);font:500 .75rem/1.4 var(--ui);color:var(--muted)}.scale-control input{width:100%;accent-color:var(--accent);min-height:32px}.scale-control output{text-align:right}}
-svg{display:block;width:100%;height:840px;touch-action:pan-y;user-select:none}
+svg{position:relative;z-index:1;overflow:visible;display:block;width:100%;height:840px;touch-action:pan-y;user-select:none}
 .grid{stroke:var(--rule);stroke-width:1}
 .side{stroke:var(--rule);stroke-width:1;stroke-dasharray:3 5;opacity:.8}
 .you{stroke:var(--ink);stroke-width:2.2}
@@ -213,7 +213,6 @@ dialog .fields{justify-content:end;padding-top:4px}
 <dialog id="event-dialog" aria-labelledby="event-title">
   <h2 id="event-title">Life event</h2>
   <form id="event-form">
-    <label><span class="label">Age</span><input id="event-age" type="number" min="0" step="0.001" required></label>
     <label><span class="label">Event</span><select id="event-type"></select></label>
     <label><span class="label">Private label · optional</span><input id="event-label" maxlength="80" placeholder="e.g. Moved to Berlin"></label>
     <p class="fine">The public gallery shows only the event type. Your named share includes this label.</p>
@@ -262,6 +261,7 @@ const normalizeTagline = value => String(value ?? '').replace(/\r\n?/g, '\n').sp
 const empty = () => ({ version: 2, birthYear: null, birthMonth: null, endMode: 'now', endYear: null, tagline: '', events: [], relationships: [] });
 const eventTypes = ['Moved city', 'New school', 'University', 'University change', 'New job', 'Job change', 'Retirement', 'Other life event'];
 let editingEvent = null;
+let eventAge = 0;
 let data = empty();
 let selected = null;
 let history = [];
@@ -535,6 +535,8 @@ function renderPlot(restoreFocus) {
   const fragment = document.createDocumentFragment();
   const defs = element('defs', {});
   fragment.append(defs);
+  const eventRules = element('g', {'pointer-events':'none'});
+  fragment.append(eventRules);
   const step = [1, 2, 5, 10, 20].find(value => !max || (bottom - top) * value / max >= 32) ?? 20;
   const ticks = [0];
   const previousAge = nowAge > 1 ? (Number.isInteger(nowAge) ? nowAge - 1 : Math.floor(nowAge)) : null;
@@ -661,10 +663,9 @@ function renderPlot(restoreFocus) {
   for (const item of data.events) {
     const eventY = y(item.age);
     const marker = element('g', {class:'event-mark', 'data-event':item.id, tabindex:0, role:'button', 'aria-label':`Edit ${item.type}, ${ageText(item.age)}`});
-    const labelWidth = Math.min(width * .45, item.type.length * 5.6 + 16);
-    fragment.append(element('line', {x1:labelWidth,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
-    marker.append(element('rect',{x:0,y:eventY-16,width:labelWidth,height:32,fill:'transparent'}),
-      element('text',{x:4,y:eventY+3,class:'event-text','pointer-events':'none'},item.type));
+    eventRules.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
+    marker.append(element('rect',{x:-100,y:eventY-16,width:94,height:32,fill:'transparent'}),
+      element('text',{x:-12,y:eventY+3,'text-anchor':'end',class:'event-text','pointer-events':'none'},item.type));
     marker.addEventListener('pointerdown', event => {
       event.stopPropagation();
       if (event.button !== 0 || !event.isPrimary || drag || eventDrag) return;
@@ -933,8 +934,7 @@ for (const type of eventTypes) $('event-type').add(new Option(type,type));
 function openEvent(age, item = null) {
   if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
   editingEvent = item;
-  $('event-age').max = horizon(data);
-  $('event-age').value = item?.age ?? clamp(Math.round(age),0,Math.floor(horizon(data)));
+  eventAge = item?.age ?? round(clamp(age,0,horizon(data)));
   $('event-type').value = item?.type ?? eventTypes[0];
   $('event-label').value = item?.label ?? '';
   $('event-delete').hidden = !item;
@@ -953,7 +953,7 @@ $('event-delete').addEventListener('click',()=> {
 });
 $('event-form').addEventListener('submit', event=> {
   event.preventDefault();
-  const age=round($('event-age').valueAsNumber);
+  const age=eventAge;
   if (!Number.isFinite(age)||age<0||age>horizon(data)) return;
   if (!editingEvent && data.events.length>=100) return status('A timeline can include up to 100 life events.',true);
   remember();

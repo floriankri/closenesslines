@@ -29,8 +29,9 @@ h1,p{margin:0}
 .status{margin-bottom:12px;color:var(--muted);font:500 .84rem/1.55 var(--ui)}
 .axis{display:grid;grid-template-columns:1fr auto 1fr;gap:4px;align-items:center;text-align:center;padding:9px 8px;border-block:1px solid var(--rule);color:var(--muted)}
 .axis strong{border-radius:2px;background:var(--ink);color:var(--paper);padding:4px 8px}
-.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,250px);border-bottom:1px solid var(--ink);max-width:670px;margin:24px auto}
-svg{display:block;width:100%;max-width:420px;height:840px}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,250px);border-bottom:1px solid var(--ink);max-width:770px;margin:24px auto}
+.workspace>section{padding-left:100px;min-width:0}
+svg{overflow:visible;display:block;width:100%;max-width:420px;height:840px}
 .sidebar{border-left:1px solid var(--rule);padding:16px 0 20px 16px;min-width:0}
 .sidebar .label{color:var(--accent)}
 #lines{list-style:none;padding:6px 0 0;margin:0}
@@ -43,7 +44,7 @@ svg{display:block;width:100%;max-width:420px;height:840px}
 [hidden]{display:none!important}
 @media(max-width:680px){
   .wrap{width:calc(100% - 28px)}
-  .workspace{grid-template-columns:minmax(0,1fr);max-width:420px}
+  .workspace{grid-template-columns:minmax(0,1fr);max-width:520px}
   .sidebar{border-left:0;border-top:1px solid var(--rule);padding-left:0}
   #lines{display:flex;flex-wrap:wrap}
   svg{height:840px}
