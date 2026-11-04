@@ -54,3 +54,34 @@
 @media (max-width: 680px) {
   .hero.page-heading { padding: 25px 0 18px; }
 }
+
+/* A shared, qualitative guide: distance is personal, not a score. */
+.closeness-scale {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 2px;
+  padding: 8px 0 2px;
+  color: var(--muted);
+  font: 400 clamp(.55rem, .8vw, .65rem)/1.3 var(--ui);
+  letter-spacing: 0;
+  text-transform: none;
+  text-align: center;
+}
+.closeness-scale span { min-width: 0; overflow-wrap: anywhere; }
+.closeness-scale span::after {
+  content: "";
+  display: block;
+  height: 5px;
+  width: 1px;
+  background: var(--rule);
+  margin: 5px auto 0;
+}
+@media (max-width: 680px) {
+  .closeness-scale { grid-template-columns: repeat(4, minmax(0, 1fr)); font-size: .6rem; }
+  .closeness-scale span:nth-child(2),
+  .closeness-scale span:nth-child(3),
+  .closeness-scale span:nth-child(6),
+  .closeness-scale span:nth-child(7) { display: none; }
+  .guide .closeness-scale { font-size: .52rem; }
+}
