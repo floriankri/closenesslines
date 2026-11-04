@@ -15,7 +15,7 @@
 body{margin:0;background:var(--paper);color:var(--ink);font:1rem/1.5 var(--serif)}
 .wrap{width:min(1080px,calc(100% - 48px));margin:auto}
 a{color:inherit;text-underline-offset:.28em}
-button,input,select{font:inherit;color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
 button,select,input[type="number"],input[type="text"]{min-height:40px;padding:7px 10px;border:1px solid var(--rule);border-radius:2px;background:var(--paper);font:500 .88rem var(--ui)}
 button{cursor:pointer}
 button:hover:not(:disabled),select:hover:not(:disabled){border-color:var(--ink)}
@@ -53,7 +53,9 @@ svg{display:block;width:100%;height:680px;touch-action:pan-y;user-select:none}
 .hit,.handle{touch-action:none}
 .hit{stroke:transparent;stroke-width:22;fill:none;pointer-events:stroke;cursor:grab}
 .line-tooltip{position:fixed;z-index:5;max-width:230px;padding:6px 9px;background:var(--paper);border:1px solid var(--rule);border-radius:2px;box-shadow:0 2px 8px #24241f12;pointer-events:none;font:600 .76rem/1.4 var(--ui)}
-#tagline{width:min(100%,560px);min-height:4.5em;resize:vertical}
+.tagline-field{display:grid;gap:8px;width:min(100%,560px);margin:0 auto 20px;text-align:left}
+#tagline{display:block;width:100%;min-height:5em;padding:12px 14px;border:1px solid var(--rule);border-radius:2px;background:var(--paper);font:400 1rem/1.5 var(--ui);resize:vertical}
+#tagline::placeholder{color:var(--muted);opacity:.75}
 .handle{cursor:grab}
 .handle:focus-visible{outline:none}
 .handle:focus-visible .knob{stroke:var(--accent);stroke-width:3}
@@ -178,12 +180,12 @@ dialog .fields{justify-content:end;padding-top:4px}
   </aside>
 </div>
 <section class="sharing" aria-label="Save and share your timeline">
+  <label class="tagline-field" for="tagline"><span class="label">Public tagline · optional</span><textarea id="tagline" rows="2" maxlength="180" placeholder="One or two lines about this life"></textarea></label>
   <div class="actions">
     <button type="button" class="primary" id="share" disabled>Share</button>
     <button type="button" id="editing-link" disabled>Editing link</button>
   </div>
   <p class="fine">Shared timelines with at least two relationships appear in the public Gallery without names. Relationship types stay visible. Anyone with the editing link can change this timeline.</p>
-  <label for="tagline"><span class="label">Public tagline · optional</span><textarea id="tagline" rows="2" maxlength="180" placeholder="One or two lines about this life"></textarea></label>
   <p class="fine" id="share-state"></p>
   <p class="fine" id="share-result" role="status" aria-live="polite"></p>
   <dl id="timeline-links" class="link-list" hidden></dl>
@@ -843,7 +845,7 @@ $('remove').addEventListener('click', () => {
 $('undo').addEventListener('click', undo);
 document.addEventListener('keydown', event => {
   if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z' &&
-      !event.target.closest('input,select,dialog') && history.length) {
+      !event.target.closest('input,textarea,select,dialog') && history.length) {
     event.preventDefault();
     undo();
   }
