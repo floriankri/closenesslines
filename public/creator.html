@@ -567,9 +567,7 @@ function renderPlot(restoreFocus) {
     const group = element('g', { style: `--line:var(--${track.category})`, opacity: chosen && !isSelected ? .46 : 1 });
     const line = element('path', { d: path, class: `thread${isSelected ? ' selected' : ''}` });
     if (track.ending === 'fade' && points.length > 1) {
-      const length = track.points.at(-1)[0] - track.points[0][0];
-      const fade = Math.max(1, (endY - firstY) * Math.min(.5, Math.max(.16, Math.min(1.5, length) / length)));
-      const gradient = element('linearGradient', { id: `grad-${track.id}`, gradientUnits: 'userSpaceOnUse', x1: 0, x2: 0, y1: endY - fade, y2: endY });
+      const gradient = element('linearGradient', { id: `grad-${track.id}`, gradientUnits: 'userSpaceOnUse', x1: 0, x2: 0, y1: y(ClosenessPlot.fadeStartAge(track.points)), y2: endY });
       gradient.append(element('stop', { offset: 0, 'stop-color': 'white' }), element('stop', { offset: 1, 'stop-color': 'white', 'stop-opacity': 0 }));
       const mask = element('mask', { id: `mask-${track.id}`, maskUnits: 'userSpaceOnUse', x: 0, y: 0, width, height });
       mask.append(element('rect', { x: 0, y: 0, width, height, fill: `url(#grad-${track.id})` }));
