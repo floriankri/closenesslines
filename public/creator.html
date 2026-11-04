@@ -36,7 +36,7 @@ h2{font-size:1.65rem;font-weight:400;line-height:1.12;letter-spacing:-.03em;over
 .tools,#status,.workspace,.sharing{max-width:692px;margin-inline:auto}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,240px);border-top:1px solid var(--ink)}
 .board{min-width:0;padding-left:32px;max-width:452px;width:100%;margin-inline:auto}
-.event-gutter{position:absolute;left:-32px;top:0;bottom:0;width:28px;padding:0;border:0;border-right:1px dashed var(--rule);color:var(--accent);background:transparent;cursor:crosshair}.event-gutter span{position:absolute;top:12px;left:6px}.event-mark{cursor:pointer}.event-text{font:500 10px var(--ui);fill:var(--accent);paint-order:stroke;stroke:var(--paper);stroke-width:3px}
+.event-gutter{position:absolute;left:-32px;top:0;bottom:0;width:28px;padding:0;border:0;border-right:1px dashed var(--rule);color:var(--accent);background:transparent;cursor:crosshair}.event-gutter span{position:absolute;top:12px;left:6px}.event-mark{cursor:ns-resize;touch-action:none}.event-text{font:500 10px var(--ui);fill:var(--accent);paint-order:stroke;stroke:var(--paper);stroke-width:3px}
 .axis-key{position:sticky;top:0;z-index:2;background:var(--paper);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px;border-bottom:1px solid var(--rule);padding:9px 8px;color:var(--muted)}
 .axis-key strong{background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:2px}
 .plot{position:relative;min-height:840px}
@@ -213,7 +213,7 @@ dialog .fields{justify-content:end;padding-top:4px}
 <dialog id="event-dialog" aria-labelledby="event-title">
   <h2 id="event-title">Life event</h2>
   <form id="event-form">
-    <label><span class="label">Age</span><input id="event-age" type="number" min="0" step="1" required></label>
+    <label><span class="label">Age</span><input id="event-age" type="number" min="0" step="0.001" required></label>
     <label><span class="label">Event</span><select id="event-type"></select></label>
     <label><span class="label">Private label · optional</span><input id="event-label" maxlength="80" placeholder="e.g. Moved to Berlin"></label>
     <p class="fine">The public gallery shows only the event type. Your named share includes this label.</p>
@@ -267,6 +267,7 @@ let selected = null;
 let history = [];
 let chart = null;
 let drag = null;
+let eventDrag = null;
 let dialogContext = null;
 const requestedEditId = new URLSearchParams(location.search).get('edit');
 const keepLocalDraft = requestedEditId === null;
@@ -387,7 +388,7 @@ function commit(message) {
   render();
 }
 function undo() {
-  if (!history.length || drag || $('person-dialog').open) return;
+  if (!history.length || drag || eventDrag || $('person-dialog').open || $('event-dialog').open) return;
   const item = history.pop();
   data = item.data;
   selected = item.selection;
@@ -659,14 +660,28 @@ function renderPlot(restoreFocus) {
   });
   for (const item of data.events) {
     const eventY = y(item.age);
-    const marker = element('g', {class:'event-mark', tabindex:0, role:'button', 'aria-label':`Edit ${item.type}, ${ageText(item.age)}`});
-    fragment.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
-    marker.append(element('rect',{x:0,y:eventY-10,width:Math.min(160,width*.45),height:32,fill:'transparent'}),
-      element('text',{x:2,y:eventY+4,class:'event-text'},'+'),
-      element('text',{x:18,y:eventY+13,class:'event-text','pointer-events':'none'},item.type));
-    marker.addEventListener('pointerdown', event => event.stopPropagation());
-    marker.addEventListener('click', event => { event.stopPropagation(); openEvent(item.age,item); });
-    marker.addEventListener('keydown', event => {if(['Enter',' '].includes(event.key)){event.preventDefault();openEvent(item.age,item);}});
+    const marker = element('g', {class:'event-mark', 'data-event':item.id, tabindex:0, role:'button', 'aria-label':`Edit ${item.type}, ${ageText(item.age)}`});
+    const labelWidth = Math.min(width * .45, item.type.length * 5.6 + 16);
+    fragment.append(element('line', {x1:labelWidth,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
+    marker.append(element('rect',{x:0,y:eventY-16,width:labelWidth,height:32,fill:'transparent'}),
+      element('text',{x:4,y:eventY+3,class:'event-text','pointer-events':'none'},item.type));
+    marker.addEventListener('pointerdown', event => {
+      event.stopPropagation();
+      if (event.button !== 0 || !event.isPrimary || drag || eventDrag) return;
+      event.preventDefault();
+      eventDrag = {pointerId:event.pointerId,item,before:clone(data),startY:event.clientY,startAge:item.age,moved:false};
+      svg.setPointerCapture(event.pointerId);
+    });
+    marker.addEventListener('keydown', event => {
+      if (['Enter',' '].includes(event.key)) {event.preventDefault();openEvent(item.age,item);}
+      if (['ArrowUp','ArrowDown'].includes(event.key)) {
+        event.preventDefault();
+        const age = clamp(Math.round(item.age) + (event.key === 'ArrowUp' ? -1 : 1), 0, Math.floor(chart.max));
+        if (age === item.age) return;
+        remember(); item.age = age; data.events.sort((a,b)=>a.age-b.age); commit('Life event moved.');
+        svg.querySelector(`[data-event="${item.id}"]`)?.focus();
+      }
+    });
     fragment.append(marker);
   }
   svg.replaceChildren(fragment);
@@ -834,6 +849,29 @@ function finish(event, cancelled) {
     } else openPersonDialog(null, gesture.place);
   }
 }
+svg.addEventListener('pointermove', event => {
+  if (!eventDrag || eventDrag.pointerId !== event.pointerId) return;
+  const delta = event.clientY - eventDrag.startY;
+  if (!eventDrag.moved && Math.abs(delta) < 5) return;
+  eventDrag.moved = true;
+  eventDrag.item.age = clamp(Math.round(eventDrag.startAge + delta * chart.max / (chart.bottom - chart.top)), 0, Math.floor(chart.max));
+  renderPlot();
+});
+function finishEventDrag(event, cancelled) {
+  if (!eventDrag || eventDrag.pointerId !== event.pointerId) return;
+  const gesture = eventDrag;
+  eventDrag = null;
+  if (cancelled) { data = gesture.before; render(); return; }
+  if (!gesture.moved) { openEvent(gesture.item.age,gesture.item); return; }
+  if (gesture.item.age !== gesture.startAge) {
+    remember(gesture.before);
+    data.events.sort((a,b)=>a.age-b.age);
+    commit('Life event moved.');
+  } else renderPlot();
+}
+svg.addEventListener('pointerup', event => finishEventDrag(event, false));
+svg.addEventListener('pointercancel', event => finishEventDrag(event, true));
+svg.addEventListener('lostpointercapture', event => finishEventDrag(event, true));
 svg.addEventListener('pointerup', event => finish(event, false));
 svg.addEventListener('pointercancel', event => finish(event, true));
 svg.addEventListener('lostpointercapture', event => finish(event, true));
@@ -894,7 +932,7 @@ for (const type of eventTypes) $('event-type').add(new Option(type,type));
 function openEvent(age, item = null) {
   if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
   editingEvent = item;
-  $('event-age').max = Math.floor(horizon(data));
+  $('event-age').max = horizon(data);
   $('event-age').value = item?.age ?? clamp(Math.round(age),0,Math.floor(horizon(data)));
   $('event-type').value = item?.type ?? eventTypes[0];
   $('event-label').value = item?.label ?? '';
