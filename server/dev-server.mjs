@@ -56,31 +56,31 @@ function openLocalStore(directory) {
     SELECT public_id, view_id, timeline, age, published, revision, created_at FROM timelines WHERE edit_hash = ?
   `);
   const view = db.prepare('SELECT timeline, age, created_at FROM timelines WHERE view_id = ?');
-  const publicTimeline = db.prepare("SELECT lines, age, created_at, json_extract(timeline, '$.duration') AS duration, json_extract(timeline, '$.tagline') AS tagline FROM timelines WHERE public_id = ? AND published = 1");
+  const publicTimeline = db.prepare("SELECT lines, age, created_at, json_extract(timeline, '$.duration') AS duration, json_extract(timeline, '$.events') AS events, json_extract(timeline, '$.tagline') AS tagline FROM timelines WHERE public_id = ? AND published = 1");
   const update = db.prepare(`
     UPDATE timelines SET timeline = ?, lines = ?, age = ?, published = ?, revision = ?
     WHERE edit_hash = ? AND revision = ?
   `);
   const gallery = db.prepare(`
     WITH ranked AS (
-      SELECT public_id, age, created_at, json_extract(timeline, '$.duration') AS duration, lines, json_extract(timeline, '$.tagline') AS tagline,
+      SELECT public_id, age, created_at, json_extract(timeline, '$.duration') AS duration, json_extract(timeline, '$.events') AS events, lines, json_extract(timeline, '$.tagline') AS tagline,
         json_array_length(lines) AS line_count,
         COALESCE((SELECT SUM(json_array_length(json_extract(value, '$.points'))) FROM json_each(lines)), 0) AS point_count
       FROM timelines WHERE published = 1 AND age BETWEEN ? AND ?
     )
-    SELECT public_id, age, created_at, duration, lines, tagline FROM ranked
+    SELECT public_id, age, created_at, duration, lines, events, tagline FROM ranked
     WHERE line_count >= 2
     ORDER BY line_count DESC, point_count DESC, public_id ASC
     LIMIT ?
   `);
   const galleryAfter = db.prepare(`
     WITH ranked AS (
-      SELECT public_id, age, created_at, json_extract(timeline, '$.duration') AS duration, lines, json_extract(timeline, '$.tagline') AS tagline,
+      SELECT public_id, age, created_at, json_extract(timeline, '$.duration') AS duration, json_extract(timeline, '$.events') AS events, lines, json_extract(timeline, '$.tagline') AS tagline,
         json_array_length(lines) AS line_count,
         COALESCE((SELECT SUM(json_array_length(json_extract(value, '$.points'))) FROM json_each(lines)), 0) AS point_count
       FROM timelines WHERE published = 1 AND age BETWEEN ? AND ?
     )
-    SELECT public_id, age, created_at, duration, lines, tagline FROM ranked
+    SELECT public_id, age, created_at, duration, lines, events, tagline FROM ranked
     WHERE line_count >= 2 AND (
       line_count < ? OR (line_count = ? AND point_count < ?) OR
       (line_count = ? AND point_count = ? AND public_id > ?)
@@ -109,7 +109,7 @@ function openLocalStore(directory) {
     },
     findPublic(id) {
       const row = publicTimeline.get(id);
-      if (row) return { ...row, lines: JSON.parse(row.lines) };
+      if (row) return { ...row, lines: JSON.parse(row.lines), events: row.events ? JSON.parse(row.events) : [] };
     },
     update(hash, revision, record) {
       return update.run(JSON.stringify(record.timeline), JSON.stringify(record.lines), record.age,
@@ -121,7 +121,7 @@ function openLocalStore(directory) {
         ? galleryAfter.all(minAge, maxAge, anchor.line_count, anchor.line_count, anchor.point_count,
           anchor.line_count, anchor.point_count, cursor, limit)
         : gallery.all(minAge, maxAge, limit);
-      return rows.map(row => ({ ...row, lines: JSON.parse(row.lines) }));
+      return rows.map(row => ({ ...row, lines: JSON.parse(row.lines), events: row.events ? JSON.parse(row.events) : [] }));
     },
     close() { db.close(); }
   };

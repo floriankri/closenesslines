@@ -11,6 +11,7 @@ const publicTypes = new Set([
   'Oldest child', 'Middle child', 'Youngest child'
 ]);
 const endings = new Set(['ongoing', 'fade', 'death']);
+const eventTypes = new Set(['Moved city', 'New school', 'University', 'University change', 'New job', 'Job change', 'Retirement', 'Other life event']);
 // Match the editor and named viewer, regardless of relationship order.
 const categoryColors = { family: '#4f6e85', friends: '#3e725f', romance: '#9c4c59', work: '#846629', pets: '#765f8d' };
 const typeColors = new Map(Object.entries(categories).flatMap(([category, types]) =>
@@ -82,6 +83,15 @@ function normalizeTimeline(input, nowDate) {
     : (endYear ?? year) - birthYear;
   if (!Number.isFinite(duration) || duration < 0 || duration > maxAge) throw invalid();
   const age = Math.floor(duration);
+  const rawEvents = input.events ?? [];
+  if (!Array.isArray(rawEvents) || rawEvents.length > 100) throw invalid();
+  const events = rawEvents.map(event => {
+    if (!object(event) || typeof event.id !== 'string' || !/^[a-z0-9-]{1,64}$/.test(event.id) ||
+        !precise(event.age) || event.age < 0 || event.age > duration || !eventTypes.has(event.type) ||
+        typeof event.label !== 'string' || event.label.length > 80) throw invalid();
+    return { id: event.id, age: event.age, type: event.type, label: event.label.trim() };
+  }).sort((a, b) => a.age - b.age);
+  if (new Set(events.map(event => event.id)).size !== events.length) throw invalid();
 
   const ids = new Set();
   const relationships = input.relationships.map(track => {
@@ -114,10 +124,13 @@ function normalizeTimeline(input, nowDate) {
       points
     };
   });
+  const normalizedTimeline = { version: 2, birthYear, birthMonth, endMode, endYear, duration, tagline: tagline.replace(/\r\n?/g, '\n').trim(), relationships };
+  if (input.events !== undefined) normalizedTimeline.events = events;
   return {
     age,
     duration,
-    timeline: { version: 2, birthYear, birthMonth, endMode, endYear, duration, tagline: tagline.replace(/\r\n?/g, '\n').trim(), relationships },
+    timeline: normalizedTimeline,
+    events: events.map(({ age: eventAge, type }) => ({ age: eventAge, type })),
     lines: relationships.map(track => ({
       color: categoryColors[track.category],
       type: publicType(track, relationships),
@@ -147,7 +160,8 @@ function publicGeometry(record) {
   const duration = record.duration === null || record.duration === undefined
     ? record.age
     : (Number.isFinite(Number(record.duration)) ? Number(record.duration) : record.age);
-  return { age: record.age, duration, createdAt: record.created_at ?? null, lines, tagline: typeof record.tagline === 'string' ? record.tagline : '' };
+  const events = Array.isArray(record.events) ? record.events.map(({ age, type }) => ({ age, type })).filter(event => precise(event.age) && eventTypes.has(event.type)) : [];
+  return { age: record.age, duration, createdAt: record.created_at ?? null, lines, events, tagline: typeof record.tagline === 'string' ? record.tagline : '' };
 }
 
 async function readBody(request) {

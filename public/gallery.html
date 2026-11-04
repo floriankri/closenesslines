@@ -27,10 +27,10 @@ button:hover:not(:disabled){border-color:var(--ink)}
 input{width:76px}
 #gallery-status{color:var(--muted);margin-top:16px;font:500 .86rem/1.5 var(--ui)}
 #gallery-status:empty{display:none}
-#items{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),250px));justify-content:start;gap:14px;padding:0;margin:16px 0}
+#items{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),210px));justify-content:start;gap:14px;padding:0;margin:16px 0}
 .timeline-card{display:block;padding:7px;border:1px solid var(--rule);text-decoration:none}
 .timeline-card:hover{border-color:var(--ink)}
-.timeline-card svg{display:block;width:100%;height:auto;background:#f0ebdf}
+.timeline-card svg{display:block;width:100%;height:auto;max-width:210px;background:#f0ebdf}
 .timeline-card span{display:block;margin:5px 3px 1px}
 .timeline-card .tagline{margin:8px 3px 3px;color:var(--muted);font:400 .95rem/1.35 var(--serif);white-space:pre-line}
 .timeline-card .created{margin:7px 3px 2px;color:var(--muted);font:500 .66rem/1.4 var(--ui);letter-spacing:.08em;text-transform:uppercase}
@@ -104,7 +104,7 @@ function addCard(item) {
   link.className = 'timeline-card';
   link.href = ClosenessAPI.timelineURL(item.publicId);
   const plot = ClosenessPlot.node('svg', { 'aria-hidden': true, focusable: false });
-  ClosenessPlot.render(plot, { age: item.age, duration: item.duration, lines: ClosenessPlot.publicLines(item.lines), preview: true, tooltip });
+  ClosenessPlot.render(plot, { age: item.age, duration: item.duration, lines: ClosenessPlot.publicLines(item.lines), events: item.events ?? [], preview: true, tooltip });
   const label = document.createElement('span');
   label.className = 'label';
   label.textContent = `Age ${item.age}`;

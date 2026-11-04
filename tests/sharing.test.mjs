@@ -90,7 +90,7 @@ test('distinct links expose only their intended data, with public preset types a
   for (const id of [editId, viewId, publicId]) assert.ok(!view.content.includes(id));
 
   const publicLink = await request('/api/timelines/' + publicId);
-  assert.deepEqual(Object.keys(publicLink.json), ['mode', 'age', 'duration', 'createdAt', 'lines', 'tagline']);
+  assert.deepEqual(Object.keys(publicLink.json), ['mode', 'age', 'duration', 'createdAt', 'lines', 'events', 'tagline']);
   assert.equal(publicLink.json.mode, 'public');
   assert.equal(publicLink.json.age, 35);
   assert.deepEqual(publicLink.json.lines.map(line => line.type), [
@@ -107,7 +107,7 @@ test('distinct links expose only their intended data, with public preset types a
     categoryColors.family, categoryColors.family, categoryColors.friends
   ]);
   const gallery = await request('/api/gallery');
-  assert.deepEqual(gallery.json, { items: [{ publicId, age: 35, duration: 35, createdAt: saved.createdAt, tagline: '', lines: publicLink.json.lines }] });
+  assert.deepEqual(gallery.json, { items: [{ publicId, age: 35, duration: 35, createdAt: saved.createdAt, tagline: '', lines: publicLink.json.lines, events: [] }] });
   for (const result of [publicLink, gallery]) {
     for (const value of [privateName, privateSubtype, 'birthYear', 'original-relationship-id', 'viewId', viewId, 'editId', editId]) {
       assert.ok(!result.content.includes(value), 'Private field in public response: ' + value);
@@ -430,4 +430,34 @@ test('body-based capabilities preserve privacy and edit authorization', async t 
     assert.ok(!published.content.includes(value));
   }
   assert.equal((await read('../bad')).response.status, 404);
+});
+
+test('life events preserve private labels but expose only safe public types', async t => {
+  const { request, save } = await testServer(t);
+  const events = [{ id: 'move-event', age: 12, type: 'Moved city', label: 'Moved to Lisbon' }];
+  const eventTimeline = { ...timeline, events };
+  const created = await save(eventTimeline, true);
+  const named = await request(`/api/timelines/${created.viewId}`);
+  assert.deepEqual(named.json.timeline.events, events);
+  const publicLink = await request(`/api/timelines/${created.publicId}`);
+  assert.deepEqual(publicLink.json.events, [{ age: 12, type: 'Moved city' }]);
+  assert.equal(JSON.stringify(publicLink.json).includes('Moved to Lisbon'), false);
+  const gallery = await request('/api/gallery');
+  assert.deepEqual(gallery.json.items[0].events, [{age:12,type:'Moved city'}]);
+  assert.equal(JSON.stringify(gallery.json).includes('Moved to Lisbon'), false);
+  assert.equal(JSON.stringify(gallery.json).includes('move-event'), false);
+});
+
+test('invalid life events are rejected as bad requests', async t => {
+  const { request } = await testServer(t);
+  const cases = [
+    { events: {} },
+    { events: [{ id: 'same', age: 2, type: 'Moved city', label: '' }, { id: 'same', age: 3, type: 'New job', label: '' }] },
+    { events: [{ id: 'future', age: 99, type: 'Moved city', label: '' }] },
+    { events: [{ id: 'bad-type', age: 2, type: 'Vacation', label: '' }] }
+  ];
+  for (const extra of cases) {
+    const result = await request('/api/timelines', { method: 'POST', body: { timeline: { ...timeline, ...extra }, publish: false } });
+    assert.equal(result.response.status, 400, result.content);
+  }
 });
