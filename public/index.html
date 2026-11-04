@@ -76,6 +76,7 @@
 </footer>
 </main>
 <div class="line-tooltip" id="line-tooltip" role="tooltip" hidden></div>
+<script src="./timeline-plot.js"></script>
 <script>
 const chapters = [
   [0, 'The first room', 'Mum and Dad are the whole world. At four, a friend down the street starts knocking.'],
@@ -208,6 +209,10 @@ function render() {
     svg.append(shape('path', {d: `M0 ${yFor(age)}H${width}`, class: 'plot-rule'}));
   }
   const birthY = yFor(0);
+  for (const guideX of ClosenessPlot.scalePositions(svg)) {
+    svg.append(shape('line', {x1: guideX, x2: guideX, y1: birthY, y2: height - 12,
+      class: 'plot-rule', 'stroke-dasharray': '3 5', 'pointer-events': 'none'}));
+  }
   svg.append(
     shape('path', {d: `M${origin} ${birthY}V${height - 12}`, class: 'you'}),
     shape('circle', {cx: origin, cy: birthY, r: 4, fill: 'var(--ink)'})

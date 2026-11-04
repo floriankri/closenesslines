@@ -400,6 +400,15 @@ function reviseTimeline(birthYear, birthMonth = data.birthMonth) {
       else if (max < points.at(-1)[0]) return false;
     } else if (max < points.at(-1)[0]) return false;
   }
+  // Seed only a new timeline, never an existing draft, import, or editing link.
+  if (data.birthYear === null && birthYear !== null && !next.relationships.length && keepLocalDraft) {
+    next.relationships = [
+      ['Parent', -.12], ['Parent', .12]
+    ].map(([subtype, distance]) => ({
+      id: crypto.randomUUID(), name: '', category: 'family', subtype, ending: 'ongoing',
+      points: max > 0 ? [[0, distance], [max, distance]] : [[0, distance]]
+    }));
+  }
   remember();
   data = next;
   commit();
@@ -531,8 +540,8 @@ function renderPlot(restoreFocus) {
   for (const age of ticks) {
     fragment.append(element('line', { x1: 8, x2: 18, y1: y(age), y2: y(age), class: 'grid' }));
   }
-  for (const distance of [-1, -.5, .5, 1]) {
-    fragment.append(element('line', { x1: x(distance), x2: x(distance), y1: top, y2: endY, class: 'side' }));
+  for (const guideX of ClosenessPlot.scalePositions(svg)) {
+    fragment.append(element('line', { x1: guideX, x2: guideX, y1: top, y2: endY, class: 'side' }));
   }
   fragment.append(
     element('line', { x1: mid, x2: mid, y1: top, y2: endY, class: 'you' }),
@@ -600,7 +609,7 @@ function renderPlot(restoreFocus) {
     fragment.append(element('text', { x: 8, y: y(age) - 6, class: 'tick', 'pointer-events': 'none' }, label));
   }
   for (const { year, age } of calendarTicks) {
-    fragment.append(element('text', { x: width - 8, y: y(age) - 6, class: 'tick', 'text-anchor': 'end', 'pointer-events': 'none' }, `Jan ${year}`));
+    fragment.append(element('text', { x: width - 8, y: y(age) - 6, class: 'tick', 'text-anchor': 'end', 'pointer-events': 'none' }, String(year)));
   }
   if (nowY !== null) {
     fragment.append(element('text', { x: width - 8, y: nowY - 6, class: 'tick end-label', 'text-anchor': 'end', 'pointer-events': 'none' }, `Now · ${currentYear}`));
