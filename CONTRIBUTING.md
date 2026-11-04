@@ -15,4 +15,3 @@ For API or Supabase changes, also verify that public projections contain no priv
 Never commit `.env` files, Supabase service keys, SQLite databases, browser exports, or generated `dist/` output unless the deployment workflow explicitly requires it. Public `config.js` may contain the Edge Function URL, but no secret.
 
 Use normal commits and review the staged diff before pushing. A frontend change should not silently alter database schema or Edge Function behavior. A schema or Edge Function change should include a migration or deployment note and its focused tests.
-

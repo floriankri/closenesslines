@@ -10,4 +10,3 @@ Closeness Lines is a static frontend with a local development server and a hoste
 - Public relationship projections may include preset relationship types, geometry, creation date, and the optional public tagline; they must not include custom names or private IDs.
 - Treat editing links as bearer secrets. Do not log or paste them into issues, screenshots, analytics, or external services.
 - Use the existing no-dependency Node toolchain unless a dependency is clearly justified and pinned.
-

@@ -33,4 +33,3 @@ The gallery is a database-ranked public projection. It excludes timelines with f
 ## Persistence and deployment
 
 The static client is built from `public/` into `dist/` for GitHub Pages. The Pages workflow publishes only `dist/`. Supabase migrations and Edge Function deploys are separate operational changes and should be reviewed independently from frontend changes.
-

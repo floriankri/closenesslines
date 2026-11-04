@@ -35,4 +35,3 @@ See [`docs/architecture.md`](docs/architecture.md) for the request flow and capa
 The hosted backend is project `jxnklhhjaumswbkmeqej`. Apply migrations through the Supabase migration workflow, then deploy the Edge Function explicitly with the installed CLI version's documented command. The service credential must remain an Edge runtime secret (`SUPABASE_SECRET_KEYS` or `SUPABASE_SERVICE_ROLE_KEY`); it must never be placed in `public/` or committed to Git.
 
 The browser identifies the backend only through `public/config.js`, which contains the public Edge Function URL. That URL identifies the project and function, but it is not an authorization credential. The function authenticates its database requests with its server-side secret and enforces origin, input, quota, publication, and capability checks.
-
