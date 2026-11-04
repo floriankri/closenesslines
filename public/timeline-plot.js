@@ -74,6 +74,17 @@ const ClosenessPlot = (() => {
     defs.append(gradient, mask);
   }
 
+  // Use the actual visible label centres so guides stay aligned at every breakpoint.
+  function scalePositions(svg) {
+    const plot = svg.getBoundingClientRect();
+    return [...document.querySelectorAll('.closeness-scale span')]
+      .filter(label => label.getClientRects().length)
+      .map(label => {
+        const rect = label.getBoundingClientRect();
+        return rect.left + rect.width / 2 - plot.left;
+      }).filter(x => x >= 0 && x <= plot.width);
+  }
+
   function render(svg, { age, duration = age, lines, ending = 'snapshot', selected = null, preview = false, tooltip = null }) {
     const width = preview ? 250 : svg.clientWidth || 600;
     const height = preview ? 170 : svg.clientHeight || 680;
@@ -99,6 +110,10 @@ const ClosenessPlot = (() => {
     const paper = preview ? '#f0ebdf' : 'var(--paper, #f7f4eb)';
     group.append(horizontalRule(0, rule));
     if (!preview) {
+      for (const guideX of scalePositions(svg)) group.append(node('line', {
+        x1: guideX, x2: guideX, y1: top, y2: bottom, stroke: rule,
+        'stroke-width': 1, 'stroke-dasharray': '3 5', opacity: .6, 'pointer-events': 'none'
+      }));
       const pixelsPerYear = span ? (bottom - top) / span : 0;
       const step = pixelsPerYear >= 32 ? 1 : pixelsPerYear >= 16 ? 2 : pixelsPerYear >= 8 ? 5 : pixelsPerYear >= 4 ? 10 : 20;
       for (let tick = step; tick < span && bottom - y(tick) > 20; tick += step) {
@@ -182,5 +197,5 @@ const ClosenessPlot = (() => {
     svg.replaceChildren(defs, group, hits, text);
   }
 
-  return { node, render, relationshipType, namedLines, publicLines };
+  return { node, render, relationshipType, namedLines, publicLines, scalePositions };
 })();
