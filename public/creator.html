@@ -33,15 +33,16 @@ h2{font-size:1.65rem;font-weight:400;line-height:1.12;letter-spacing:-.03em;over
 .fields input[type="number"]{width:90px}
 #status{min-height:2.25em;padding:7px 0;font:500 .77rem/1.45 var(--ui);color:var(--muted)}
 #status.error,.danger{color:var(--accent)}
-.tools,#status,.workspace,.sharing{max-width:840px;margin-inline:auto}
+.tools,#status,.workspace,.sharing{max-width:692px;margin-inline:auto}
 .workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(220px,240px);border-top:1px solid var(--ink)}
-.board{min-width:0}
+.board{min-width:0;padding-left:32px;max-width:452px;width:100%;margin-inline:auto}
+.event-gutter{position:absolute;left:-32px;top:0;bottom:0;width:28px;padding:0;border:0;border-right:1px dashed var(--rule);color:var(--accent);background:transparent;cursor:crosshair}.event-gutter span{position:absolute;top:12px;left:6px}.event-mark{cursor:pointer}.event-text{font:500 10px var(--ui);fill:var(--accent);paint-order:stroke;stroke:var(--paper);stroke-width:3px}
 .axis-key{position:sticky;top:0;z-index:2;background:var(--paper);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px;border-bottom:1px solid var(--rule);padding:9px 8px;color:var(--muted)}
 .axis-key strong{background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:2px}
-.plot{position:relative;min-height:680px}
+.plot{position:relative;min-height:840px}
 .scale-control{display:none}
-@media(min-width:681px) and (pointer:fine){svg#plot{height:var(--plot-height,680px)}.scale-control{display:grid;grid-template-columns:auto minmax(80px,1fr) 2.5em;align-items:center;gap:14px;padding:14px 8px;border-top:1px solid var(--rule);font:500 .75rem/1.4 var(--ui);color:var(--muted)}.scale-control input{width:100%;accent-color:var(--accent);min-height:32px}.scale-control output{text-align:right}}
-svg{display:block;width:100%;height:680px;touch-action:pan-y;user-select:none}
+@media(min-width:681px) and (pointer:fine){svg#plot{height:var(--plot-height,840px)}.scale-control{display:grid;grid-template-columns:auto minmax(80px,1fr) 2.5em;align-items:center;gap:14px;padding:14px 8px;border-top:1px solid var(--rule);font:500 .75rem/1.4 var(--ui);color:var(--muted)}.scale-control input{width:100%;accent-color:var(--accent);min-height:32px}.scale-control output{text-align:right}}
+svg{display:block;width:100%;height:840px;touch-action:pan-y;user-select:none}
 .grid{stroke:var(--rule);stroke-width:1}
 .side{stroke:var(--rule);stroke-width:1;stroke-dasharray:3 5;opacity:.8}
 .you{stroke:var(--ink);stroke-width:2.2}
@@ -145,13 +146,14 @@ dialog .fields{justify-content:end;padding-top:4px}
 <p id="status" role="status" aria-live="polite"></p>
 <div class="workspace">
   <section class="board" aria-label="Timeline">
-    <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span>Acquaintance</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span>Acquaintance</span></div></div>
+    <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span title="Acquaintance">Acquaint.</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span title="Acquaintance">Acquaint.</span></div></div>
     <div class="plot">
+      <button type="button" id="event-gutter" class="event-gutter" aria-label="Add life event at an age" title="Click beside an age to add a life event"><span>+</span></button>
       <svg id="plot" aria-label="Closeness graph. Age increases from top to bottom." aria-describedby="plot-help"></svg>
       <div class="line-tooltip" id="line-tooltip" role="tooltip" hidden></div>
       <div class="hint" id="hint"></div>
     </div>
-    <div class="scale-control"><label for="timeline-height">Timeline length</label><input id="timeline-height" type="range" min="680" max="2720" step="40" value="680" aria-valuetext="Standard length"><output id="height-value" for="timeline-height">1×</output></div>
+    <div class="scale-control"><label for="timeline-height">Timeline length</label><input id="timeline-height" type="range" min="840" max="3360" step="40" value="840" aria-valuetext="Standard length"><output id="height-value" for="timeline-height">1×</output></div>
   </section>
   <aside class="sidebar">
     <section class="editor" id="editor" hidden aria-label="Selected relationship">
@@ -208,6 +210,16 @@ dialog .fields{justify-content:end;padding-top:4px}
     </div>
   </form>
 </dialog>
+<dialog id="event-dialog" aria-labelledby="event-title">
+  <h2 id="event-title">Life event</h2>
+  <form id="event-form">
+    <label><span class="label">Age</span><input id="event-age" type="number" min="0" step="1" required></label>
+    <label><span class="label">Event</span><select id="event-type"></select></label>
+    <label><span class="label">Private label · optional</span><input id="event-label" maxlength="80" placeholder="e.g. Moved to Berlin"></label>
+    <p class="fine">The public gallery shows only the event type. Your named share includes this label.</p>
+    <div class="fields"><button type="button" id="event-delete" class="danger">Delete</button><button type="button" id="event-cancel">Cancel</button><button type="submit" class="primary">Save event</button></div>
+  </form>
+</dialog>
 <noscript><p>Enable JavaScript to draw a timeline.</p></noscript>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
@@ -247,7 +259,9 @@ const yearInRange = (year, min, max) => Number.isInteger(year) && year >= min &&
 $('birth').max = currentYear;
 const horizon = model => model.birthYear === null ? 0 : model.endMode === 'death' || !model.birthMonth ? (model.endYear ?? currentYear) - model.birthYear : round(((currentYear - model.birthYear) * 12 + currentMonth - model.birthMonth) / 12);
 const normalizeTagline = value => String(value ?? '').replace(/\r\n?/g, '\n').split('\n').slice(0, 2).join('\n').slice(0, 180);
-const empty = () => ({ version: 2, birthYear: null, birthMonth: null, endMode: 'now', endYear: null, tagline: '', relationships: [] });
+const empty = () => ({ version: 2, birthYear: null, birthMonth: null, endMode: 'now', endYear: null, tagline: '', events: [], relationships: [] });
+const eventTypes = ['Moved city', 'New school', 'University', 'University change', 'New job', 'Job change', 'Retirement', 'Other life event'];
+let editingEvent = null;
 let data = empty();
 let selected = null;
 let history = [];
@@ -304,6 +318,16 @@ function validate(value) {
   const ids = new Set();
   const max = horizon(model);
   const originalMax = legacyFuture ? endYear - birthYear : max;
+  if (value.events !== undefined && (!Array.isArray(value.events) || value.events.length > 100)) bad();
+  const eventIds = new Set();
+  if (birthYear === null && value.events?.length) bad();
+  model.events = (value.events ?? []).map(item => {
+    if (!item || typeof item.id !== 'string' || !/^[a-z0-9-]{1,64}$/.test(item.id) || eventIds.has(item.id) ||
+      !eventTypes.includes(item.type) || typeof item.label !== 'string' || item.label.length > 80 ||
+      !Number.isFinite(item.age) || item.age < 0 || item.age > originalMax || item.age !== round(item.age)) bad('Invalid life event.');
+    eventIds.add(item.id);
+    return {id:item.id, age:item.age, type:item.type, label:item.label.trim()};
+  }).filter(item => item.age <= max).sort((a,b) => a.age-b.age);
   for (const track of value.relationships) {
     if (!track || typeof track.id !== 'string' || !/^[a-z0-9-]{1,64}$/.test(track.id) || ids.has(track.id) ||
         !Object.hasOwn(categories, track.category) || !endings.has(track.ending) ||
@@ -390,7 +414,7 @@ function reviseTimeline(birthYear, birthMonth = data.birthMonth) {
   next.birthYear = birthYear;
   next.birthMonth = birthMonth;
   const max = horizon(next);
-  if (max < 0) return false;
+  if (max < 0 || next.events.some(item => item.age > max)) return false;
   for (const track of next.relationships) {
     const points = track.points;
     if (track.ending === 'ongoing') {
@@ -417,9 +441,9 @@ function reviseTimeline(birthYear, birthMonth = data.birthMonth) {
 $('birth').addEventListener('change', () => {
   const field = $('birth');
   if (field.value === '' && data.birthYear !== null && !field.validity.badInput) {
-    if (data.relationships.length) {
+    if (data.relationships.length || data.events.length) {
       render();
-      return status('Remove the relationships before clearing the birth year.', true);
+      return status('Remove the relationships and life events before clearing the birth year.', true);
     }
     remember();
     data = empty();
@@ -455,7 +479,7 @@ $('timeline-height').addEventListener('input', event => {
   const before = slider.getBoundingClientRect().top;
   const height = Number(slider.value);
   document.querySelector('.board').style.setProperty('--plot-height', `${height}px`);
-  const scale = `${Number((height / 680).toFixed(1))}×`;
+  const scale = `${Number((height / 840).toFixed(1))}×`;
   $('height-value').textContent = scale;
   slider.setAttribute('aria-valuetext', `${scale} standard length`);
   renderPlot();
@@ -476,7 +500,7 @@ function hideTooltip() {
 }
 function showTooltip(track, x, y) {
   if (!track || activeTrack() || drag) return hideTooltip();
-  tooltip.textContent = displayName(track);
+  tooltip.textContent = [relationshipType(track), track.name].filter((text, i, all) => text && all.indexOf(text) === i).join(' · ');
   tooltip.hidden = false;
   const margin = 10;
   const gap = 14;
@@ -633,6 +657,18 @@ function renderPlot(restoreFocus) {
     );
     fragment.append(handle);
   });
+  for (const item of data.events) {
+    const eventY = y(item.age);
+    const marker = element('g', {class:'event-mark', tabindex:0, role:'button', 'aria-label':`Edit ${item.type}, ${ageText(item.age)}`});
+    fragment.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
+    marker.append(element('rect',{x:0,y:eventY-10,width:Math.min(160,width*.45),height:32,fill:'transparent'}),
+      element('text',{x:2,y:eventY+4,class:'event-text'},'+'),
+      element('text',{x:18,y:eventY+13,class:'event-text','pointer-events':'none'},item.type));
+    marker.addEventListener('pointerdown', event => event.stopPropagation());
+    marker.addEventListener('click', event => { event.stopPropagation(); openEvent(item.age,item); });
+    marker.addEventListener('keydown', event => {if(['Enter',' '].includes(event.key)){event.preventDefault();openEvent(item.age,item);}});
+    fragment.append(marker);
+  }
   svg.replaceChildren(fragment);
   if (restoreFocus !== undefined) svg.querySelector(`[data-point="${restoreFocus}"]`)?.focus();
 }
@@ -854,6 +890,38 @@ function openPersonDialog(track, place) {
   $('person-dialog').showModal();
   $('category').focus();
 }
+for (const type of eventTypes) $('event-type').add(new Option(type,type));
+function openEvent(age, item = null) {
+  if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
+  editingEvent = item;
+  $('event-age').max = Math.floor(horizon(data));
+  $('event-age').value = item?.age ?? clamp(Math.round(age),0,Math.floor(horizon(data)));
+  $('event-type').value = item?.type ?? eventTypes[0];
+  $('event-label').value = item?.label ?? '';
+  $('event-delete').hidden = !item;
+  $('event-dialog').showModal();
+}
+$('event-gutter').addEventListener('click', event => {
+  const rect=svg.getBoundingClientRect();
+  const age=event.detail ? (event.clientY-rect.top-chart.top)/(chart.bottom-chart.top)*chart.max : 0;
+  openEvent(age);
+});
+$('event-cancel').addEventListener('click',()=> $('event-dialog').close());
+$('event-delete').addEventListener('click',()=> {
+  if (!editingEvent) return;
+  remember(); data.events=data.events.filter(item=>item.id!==editingEvent.id);
+  $('event-dialog').close();commit('Life event removed.');
+});
+$('event-form').addEventListener('submit', event=> {
+  event.preventDefault();
+  const age=round($('event-age').valueAsNumber);
+  if (!Number.isFinite(age)||age<0||age>horizon(data)) return;
+  if (!editingEvent && data.events.length>=100) return status('A timeline can include up to 100 life events.',true);
+  remember();
+  const item={id:editingEvent?.id??crypto.randomUUID(),age,type:$('event-type').value,label:$('event-label').value.trim()};
+  data.events=data.events.filter(existing=>existing.id!==item.id).concat(item).sort((a,b)=>a.age-b.age);
+  $('event-dialog').close();commit('Life event saved.');
+});
 $('cancel').addEventListener('click', () => $('person-dialog').close());
 $('edit').addEventListener('click', () => {
   const track = activeTrack();

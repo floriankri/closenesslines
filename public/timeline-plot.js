@@ -34,7 +34,10 @@ const ClosenessPlot = (() => {
 
   function namedLines(timeline) {
     return timeline.relationships.map(track => ({
-      label: track.name || relationshipType(track, timeline.relationships) || categoryLabels[track.category],
+      label: (() => {
+        const type = relationshipType(track, timeline.relationships) || categoryLabels[track.category];
+        return track.name && track.name !== type ? `${type} · ${track.name}` : type;
+      })(),
       color: categoryColors[track.category],
       ending: track.ending,
       points: track.points
@@ -90,9 +93,9 @@ const ClosenessPlot = (() => {
       }).filter(x => x >= 0 && x <= plot.width);
   }
 
-  function render(svg, { age, duration = age, lines, ending = 'snapshot', selected = null, preview = false, tooltip = null }) {
-    const width = preview ? 250 : svg.clientWidth || 600;
-    const height = preview ? 300 : svg.clientHeight || 680;
+  function render(svg, { age, duration = age, lines, events = [], ending = 'snapshot', selected = null, preview = false, tooltip = null }) {
+    const width = preview ? 210 : svg.clientWidth || 600;
+    const height = preview ? 420 : svg.clientHeight || 840;
     const mid = width / 2;
     const top = preview ? 13 : 30;
     const span = Number.isFinite(Number(duration)) ? Number(duration) : age;
@@ -128,6 +131,46 @@ const ClosenessPlot = (() => {
       text.append(node('text', { x: 8, y: top - 6 }, 'Birth'));
       const endText = ending === 'now' ? `Now · Age ${displayAge}` : ending === 'death' ? `Death · Age ${displayAge}` : `Age ${displayAge}`;
       text.append(node('text', { x: width - 8, y: bottom - 6, 'text-anchor': 'end', 'font-weight': 700, fill: ending === 'death' ? accent : ink }, endText));
+    }
+    for (const event of events) {
+      if (!Number.isFinite(Number(event.age)) || event.age < 0 || event.age > span) continue;
+      const eventY = y(Number(event.age));
+      const eventLine = node('line', { x1: 8, x2: preview ? width * .46 : width * .36, y1: eventY, y2: eventY,
+        stroke: accent, 'stroke-width': preview ? 1 : 1.2, 'stroke-dasharray': '2 3', opacity: .72 });
+      group.append(eventLine);
+      const eventLabel = [event.type, event.label].filter(Boolean).join(' · ');
+      if (eventLabel) eventLine.append(node('title', {}, eventLabel));
+      if (!preview && event.type) text.append(node('text', { x: 22, y: eventY + 13, fill: accent, 'pointer-events': 'none' }, event.type));
+      if (!preview && eventLabel && tooltip) {
+        const hit = node('rect', { x: 8, y: eventY - 10, width: Math.min(150, width * .45), height: 32,
+          fill: 'transparent', 'pointer-events': 'all', class: 'plot-hit',
+          tabindex: 0, role: 'button', 'aria-label': eventLabel });
+        const show = event => {
+          tooltip.textContent = eventLabel;
+          tooltip.hidden = false;
+          const anchor = hit.getBoundingClientRect();
+          const hasPointer = event && Number.isFinite(event.clientX) && event.clientX > 0 && event.clientY > 0;
+          const pointX = hasPointer ? event.clientX : anchor.left + anchor.width / 2;
+          const pointY = hasPointer ? event.clientY : anchor.top;
+          const left = Math.min(Math.max(8, pointX + 12), window.innerWidth - tooltip.offsetWidth - 8);
+          const top = Math.min(Math.max(8, pointY - tooltip.offsetHeight - 10), window.innerHeight - tooltip.offsetHeight - 8);
+          tooltip.style.left = `${left}px`;
+          tooltip.style.top = `${top}px`;
+        };
+        const hide = () => { tooltip.hidden = true; };
+        hit.addEventListener('pointerenter', show);
+        hit.addEventListener('pointermove', show);
+        hit.addEventListener('pointerdown', show);
+        hit.addEventListener('pointerleave', event => { if (event.pointerType !== 'touch') hide(); });
+        hit.addEventListener('focus', show);
+        hit.addEventListener('blur', hide);
+        hit.addEventListener('keydown', event => {
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          show(event);
+        });
+        hits.append(hit);
+      }
     }
     if (span) group.append(horizontalRule(span, preview ? rule : ink));
     group.append(

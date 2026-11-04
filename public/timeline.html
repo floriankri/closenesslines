@@ -29,8 +29,8 @@ h1,p{margin:0}
 .status{margin-bottom:12px;color:var(--muted);font:500 .84rem/1.55 var(--ui)}
 .axis{display:grid;grid-template-columns:1fr auto 1fr;gap:4px;align-items:center;text-align:center;padding:9px 8px;border-block:1px solid var(--rule);color:var(--muted)}
 .axis strong{border-radius:2px;background:var(--ink);color:var(--paper);padding:4px 8px}
-.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,250px);border-bottom:1px solid var(--ink);margin:24px 0}
-svg{display:block;width:100%;height:680px}
+.workspace{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,250px);border-bottom:1px solid var(--ink);max-width:670px;margin:24px auto}
+svg{display:block;width:100%;max-width:420px;height:840px}
 .sidebar{border-left:1px solid var(--rule);padding:16px 0 20px 16px;min-width:0}
 .sidebar .label{color:var(--accent)}
 #lines{list-style:none;padding:6px 0 0;margin:0}
@@ -43,9 +43,10 @@ svg{display:block;width:100%;height:680px}
 [hidden]{display:none!important}
 @media(max-width:680px){
   .wrap{width:calc(100% - 28px)}
-  .workspace{grid-template-columns:minmax(0,1fr)}
+  .workspace{grid-template-columns:minmax(0,1fr);max-width:420px}
   .sidebar{border-left:0;border-top:1px solid var(--rule);padding-left:0}
   #lines{display:flex;flex-wrap:wrap}
+  svg{height:840px}
 }
 </style>
 </head>
@@ -65,7 +66,7 @@ svg{display:block;width:100%;height:680px}
   <section aria-label="Timeline">
     <p id="timeline-tagline" class="timeline-tagline" hidden></p>
     <p id="timeline-created" class="timeline-created" hidden></p>
-    <div class="axis"><span>← Farther</span><strong>Person ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span>Acquaintance</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span>Acquaintance</span></div></div>
+    <div class="axis"><span>← Farther</span><strong>Person ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span title="Acquaintance">Acquaint.</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span title="Acquaintance">Acquaint.</span></div></div>
     <svg id="timeline-plot" role="img" aria-label="Closeness graph. Age increases from top to bottom."></svg>
     <div id="line-tooltip" class="line-tooltip" role="tooltip" hidden></div>
   </section>
@@ -94,6 +95,7 @@ async function openTimeline() {
     if (!['view', 'public'].includes(result.mode)) throw new Error('This timeline could not be opened.');
     const named = result.mode === 'view';
     const lines = named ? ClosenessPlot.namedLines(result.timeline) : ClosenessPlot.publicLines(result.lines);
+    const events = named ? (result.timeline.events ?? []) : (result.events ?? []);
     const ending = named ? result.timeline.endMode : 'snapshot';
     const viewer = document.getElementById('viewer');
     const tagline = document.getElementById('timeline-tagline');
@@ -123,7 +125,7 @@ async function openTimeline() {
     createdLabel.hidden = !createdText;
     let selected = null;
     const buttons = [];
-    const draw = () => ClosenessPlot.render(plot, { age: result.age, duration: result.duration ?? result.timeline?.duration ?? result.age, lines, ending, selected, tooltip });
+    const draw = () => ClosenessPlot.render(plot, { age: result.age, duration: result.duration ?? result.timeline?.duration ?? result.age, lines, events, ending, selected, tooltip });
     lines.forEach((line, index) => {
       const item = document.createElement('li');
       const button = document.createElement('button');

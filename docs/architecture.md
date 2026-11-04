@@ -39,3 +39,9 @@ The static client is built from `public/` into `dist/` for GitHub Pages. The Pag
 Birth month is optional and private. When provided, the current horizon uses elapsed whole months, rounded to three decimal years internally; no day is collected. Public age filters remain whole-year ages, while a derived duration keeps the geometry accurate. Year-only timelines retain their previous calculation. Death timelines remain approximate to the supplied end year.
 
 The creator's desktop length slider changes only rendering height, from680 to2720px. It does not alter saved points or timeline dates. Grid spacing follows available pixels per year; mobile retains its compact graph and hides the slider.
+
+Life events are optional `timeline.events` entries with `{id, age, type, label}`.
+The named and edit views retain labels; public responses and gallery RPCs project
+only `{age, type}`. Preset types are server-validated, and existing timelines without
+events remain compatible. The creator adds/edits events through the left age gutter.
+Timeline rendering uses 420×840 default desktop geometry, with 210×420 gallery previews.

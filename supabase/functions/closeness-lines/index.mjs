@@ -63,7 +63,8 @@ function createSupabaseStore(projectUrl, key, legacy) {
       return response.json();
     },
     async findPublic(id) {
-      const [row] = await data({ select: 'age,created_at,duration:timeline->>duration,lines,tagline:timeline->>tagline', public_id: `eq.${id}`, published: 'eq.true', limit: 1 });
+      const [row] = await data({ select: 'age,created_at,duration:timeline->>duration,lines,events:timeline->>events,tagline:timeline->>tagline', public_id: `eq.${id}`, published: 'eq.true', limit: 1 });
+      if (row?.events && typeof row.events === 'string') row.events = JSON.parse(row.events);
       return row;
     },
     async update(hash, revision, { timeline, lines, age, published }) {

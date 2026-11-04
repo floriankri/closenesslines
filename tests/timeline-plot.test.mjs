@@ -18,3 +18,9 @@ test('the final segment controls fade timing even after multiple outward edits',
   assert.equal(plot.fadeStartAge([[0, .1], [20, .1], [25, .1]]), 20);
   assert.equal(plot.fadeStartAge([[5, .1]]), 5);
 });
+
+test('named relationship labels retain both role and private name without duplicates', () => {
+  const track = {id:'grandparent',category:'family',subtype:'Grandparent',name:'Esther',ending:'ongoing',points:[[0,.2],[30,.2]]};
+  assert.equal(plot.namedLines({relationships:[track]})[0].label, 'Grandparent · Esther');
+  assert.equal(plot.namedLines({relationships:[{...track,name:'Grandparent'}]})[0].label, 'Grandparent');
+});
