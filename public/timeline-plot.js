@@ -135,14 +135,15 @@ const ClosenessPlot = (() => {
     for (const event of events) {
       if (!Number.isFinite(Number(event.age)) || event.age < 0 || event.age > span) continue;
       const eventY = y(Number(event.age));
-      const eventLine = node('line', { x1: 8, x2: preview ? width * .46 : width * .36, y1: eventY, y2: eventY,
+      const eventLabelWidth = Math.min(width * .45, String(event.type).length * 5.6 + 16);
+      const eventLine = node('line', { x1: preview ? 8 : eventLabelWidth, x2: preview ? width * .46 : width - 8, y1: eventY, y2: eventY,
         stroke: accent, 'stroke-width': preview ? 1 : 1.2, 'stroke-dasharray': '2 3', opacity: .72 });
       group.append(eventLine);
       const eventLabel = [event.type, event.label].filter(Boolean).join(' · ');
       if (eventLabel) eventLine.append(node('title', {}, eventLabel));
-      if (!preview && event.type) text.append(node('text', { x: 22, y: eventY + 13, fill: accent, 'pointer-events': 'none' }, event.type));
+      if (!preview && event.type) text.append(node('text', { x: 4, y: eventY + 3, fill: accent, 'pointer-events': 'none' }, event.type));
       if (!preview && eventLabel && tooltip) {
-        const hit = node('rect', { x: 8, y: eventY - 10, width: Math.min(150, width * .45), height: 32,
+        const hit = node('rect', { x: 0, y: eventY - 16, width: eventLabelWidth, height: 32,
           fill: 'transparent', 'pointer-events': 'all', class: 'plot-hit',
           tabindex: 0, role: 'button', 'aria-label': eventLabel });
         const show = event => {
