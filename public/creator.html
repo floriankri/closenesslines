@@ -676,7 +676,8 @@ function renderPlot(restoreFocus) {
       if (['Enter',' '].includes(event.key)) {event.preventDefault();openEvent(item.age,item);}
       if (['ArrowUp','ArrowDown'].includes(event.key)) {
         event.preventDefault();
-        const age = clamp(Math.round(item.age) + (event.key === 'ArrowUp' ? -1 : 1), 0, Math.floor(chart.max));
+        const delta = (event.shiftKey ? 10 : 1) * chart.max / (chart.bottom - chart.top);
+        const age = round(clamp(item.age + (event.key === 'ArrowUp' ? -delta : delta), 0, chart.max));
         if (age === item.age) return;
         remember(); item.age = age; data.events.sort((a,b)=>a.age-b.age); commit('Life event moved.');
         svg.querySelector(`[data-event="${item.id}"]`)?.focus();
@@ -854,7 +855,7 @@ svg.addEventListener('pointermove', event => {
   const delta = event.clientY - eventDrag.startY;
   if (!eventDrag.moved && Math.abs(delta) < 5) return;
   eventDrag.moved = true;
-  eventDrag.item.age = clamp(Math.round(eventDrag.startAge + delta * chart.max / (chart.bottom - chart.top)), 0, Math.floor(chart.max));
+  eventDrag.item.age = round(clamp(eventDrag.startAge + delta * chart.max / (chart.bottom - chart.top), 0, chart.max));
   renderPlot();
 });
 function finishEventDrag(event, cancelled) {
