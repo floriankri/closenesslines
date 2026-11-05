@@ -125,11 +125,11 @@ dialog .fields{justify-content:end;padding-top:4px}
   .page-heading + .tools{border-top:0}
   .page-heading + article .essay-card{border-top:0}
 }
-.guide-launch{max-width:760px;margin:12px auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-#tour-spot{position:fixed;z-index:30;border:3px solid var(--accent);border-radius:8px;box-shadow:0 0 0 5px #a33d2d16;pointer-events:none}
-#tour-card{position:fixed;z-index:31;right:18px;bottom:18px;width:min(320px,calc(100% - 28px));padding:16px;background:var(--paper);border:1px solid var(--accent);box-shadow:0 4px 24px #24241f25}
-#tour-card h2{font-size:1.4rem;margin:5px 0 8px}#tour-copy{font:500 .85rem/1.5 var(--ui);margin-bottom:12px}
-@media(max-width:680px){#tour-card{left:14px;right:14px;bottom:10px}.tour-active .editor{display:none!important}}
+.section-heading{display:flex;flex-direction:column;align-items:start;gap:8px;margin:16px 0 6px}.section-heading h2{font-size:1.3rem}.section-heading button{width:100%;text-align:left}
+#events-list{list-style:none;margin:0;padding:0}#events-list button{width:100%;text-align:left;border-color:transparent;overflow-wrap:anywhere}#events-list small{display:block;color:var(--muted)}
+#placement-help{padding:10px 0;border-bottom:1px solid var(--rule)}#placement-help button{margin-top:8px}#event-editor{border-bottom:1px solid var(--rule);padding-bottom:16px}#event-editor form{display:grid;gap:10px}#event-editor h2{margin:8px 0}#close-event{float:right}
+#panel-toggle{display:none}.sidebar{position:sticky;top:12px;align-self:start;max-height:calc(100dvh - 24px);overflow:auto;padding-right:8px}
+@media(max-width:680px){body{padding-bottom:76px}.sidebar{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:20;background:var(--paper);border-top:1px solid var(--ink);padding:0;max-height:55dvh;box-shadow:0 -3px 14px #24241f15}#panel-toggle{position:sticky;top:0;z-index:2;background:var(--paper);display:flex;justify-content:space-between;width:100%;min-height:52px;border:0;padding:12px 16px}#panel-body{display:none;padding:0 16px 16px}.sidebar.panel-open #panel-body{display:block}.editor:not([hidden]){position:static;max-height:none;box-shadow:none;border:0;padding:12px 0;margin:0}.section-heading{flex-direction:row;align-items:center;justify-content:space-between}.section-heading button{width:auto}#relationships{display:block}.sidebar.placing #panel-body{display:block}.sidebar.placing #panel-body>:not(#placement-help){display:none}#panel-toggle span{transition:transform .15s}.panel-open #panel-toggle span{transform:rotate(180deg)}}
 </style>
 </head>
 <body>
@@ -157,11 +157,9 @@ dialog .fields{justify-content:end;padding-top:4px}
   </div>
 </div>
 <p id="status" role="status" aria-live="polite"></p>
-<div class="guide-launch"><button type="button" id="start-guide">Guide me through it</button><span class="fine">A short walkthrough on your own timeline.</span></div>
 <div class="workspace">
   <section class="board" aria-label="Timeline">
     <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span title="Acquaintance">Acquaint.</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span title="Acquaintance">Acquaint.</span></div></div>
-    <div class="canvas-actions" aria-label="Timeline actions"><button type="button" id="add-person">Add person</button><button type="button" id="add-event">Add life event</button><button type="button" id="cancel-placement" hidden>Cancel</button></div>
     <div class="plot">
       <button type="button" id="event-gutter" class="event-gutter" aria-label="Add life event at an age" title="Click beside an age to add a life event"><span>+</span></button>
       <svg id="plot" aria-label="Closeness graph. Age increases from top to bottom." aria-describedby="plot-help"></svg>
@@ -170,7 +168,11 @@ dialog .fields{justify-content:end;padding-top:4px}
     </div>
     <div class="scale-control"><label for="timeline-height">Timeline length</label><input id="timeline-height" type="range" min="840" max="3360" step="40" value="840" aria-valuetext="Standard length"><output id="height-value" for="timeline-height">1×</output></div>
   </section>
-  <aside class="sidebar">
+  <aside class="sidebar" aria-label="People and life events">
+    <button id="panel-toggle" type="button" aria-expanded="false" aria-controls="panel-body">People &amp; life events <span aria-hidden="true">↑</span></button>
+    <div id="panel-body">
+    <div id="placement-help" hidden><p id="placement-copy" class="fine"></p><button type="button" id="cancel-placement">Cancel placement</button></div>
+    <section id="event-editor" hidden aria-label="Selected life event"><button type="button" id="close-event">Done</button><h2>Life event</h2><p class="fine">Drag its label or dotted line to move it.</p><div id="event-form-host"></div></section>
     <section class="editor" id="editor" hidden aria-label="Selected relationship">
       <button type="button" id="close-editor" class="editor-close">Done</button>
       <p class="panel-kicker" id="kind-label"></p>
@@ -189,16 +191,19 @@ dialog .fields{justify-content:end;padding-top:4px}
         <button type="button" id="remove" class="danger">Remove</button>
       </div>
     </section>
-    <p class="panel-kicker">Relationships</p>
+    <div class="section-heading"><h2>People</h2><button type="button" id="add-person">+ Add person</button></div>
     <p id="empty-list">The people you add appear here.</p>
     <ul id="relationships"></ul>
+    <div class="section-heading"><h2>Life events</h2><button type="button" id="add-event">+ Add event</button></div>
+    <p class="fine" id="empty-events">Moves, school, work and other turning points.</p><ul id="events-list"></ul>
     <details class="instructions">
       <summary>How to draw</summary>
-      <p id="plot-help">Tap blank space to start a relationship. Drag its line to add a point. Drag a point to move it, or tap an inside point to remove it.</p>
+      <p id="plot-help">Use + Add person or + Add event in this panel. You can also tap blank graph space to start a relationship. Drag its line to add a point. Drag a point to move it, or tap an inside point to remove it.</p>
       <p>Drag the end earlier or toward either outer edge to fade it. Choose <em>Death</em> to end it with a red ring. A line can move to either side; only its distance from you matters.</p>
       <p>With a point focused, use the arrow keys to move it or Delete to remove an inside point.</p>
       <p>Add a birth month for a more precise position of Now.</p>
     </details>
+    </div>
   </aside>
 </div>
 <section class="sharing" aria-label="Save and share your timeline">
@@ -235,11 +240,6 @@ dialog .fields{justify-content:end;padding-top:4px}
     <div class="fields"><button type="button" id="event-delete" class="danger">Delete</button><button type="button" id="event-cancel">Cancel</button><button type="submit" class="primary">Save event</button></div>
   </form>
 </dialog>
-<div id="tour-spot" aria-hidden="true" hidden></div>
-<section id="tour-card" aria-label="Timeline walkthrough" hidden>
-  <p id="tour-step" class="panel-kicker"></p><h2 id="tour-title"></h2><p id="tour-copy" aria-live="polite"></p>
-  <div class="actions"><button id="tour-skip" type="button">Skip step</button><button id="tour-exit" type="button">Exit guide</button></div>
-</section>
 <noscript><p>Enable JavaScript to draw a timeline.</p></noscript>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
@@ -292,6 +292,9 @@ let eventDrag = null;
 let dialogContext = null;
 let placementMode = null;
 let pendingPerson = null;
+let panelOpen = false;
+let lastPanelSelection = null;
+let hintTrack = null;
 const requestedEditId = new URLSearchParams(location.search).get('edit');
 const keepLocalDraft = requestedEditId === null;
 let editUnavailable = !keepLocalDraft;
@@ -408,11 +411,11 @@ function remember(before = data, selection = selected) {
 function commit(message) {
   if (keepLocalDraft) storeDraft(message);
   else status(message || 'Changes are in this tab until you save them.');
-  advanceTour();
   render();
 }
 function undo() {
   if (!history.length || drag || eventDrag || $('person-dialog').open || $('event-dialog').open) return;
+  editingEvent = null;
   const item = history.pop();
   data = item.data;
   selected = item.selection;
@@ -716,6 +719,11 @@ function renderPlot(restoreFocus) {
     });
     fragment.append(marker);
   }
+  const hinted = data.relationships.find(item => item.id === hintTrack);
+  if (hinted && hinted.points.length <= 2) {
+    const [age,distance] = hinted.points[0];
+    fragment.append(element('text',{x:Math.max(8,Math.min(width-160,x(distance)+10)),y:Math.min(endY-12,y(age)+22),class:'tick','pointer-events':'none'},'Drag to show closeness'));
+  }
   svg.replaceChildren(fragment);
   if (restoreFocus !== undefined) svg.querySelector(`[data-point="${restoreFocus}"]`)?.focus();
 }
@@ -737,10 +745,18 @@ function render() {
   title.textContent = started ? 'Start with one person.' : 'Every timeline begins at birth.';
   helper.textContent = started ? 'Tap anywhere on the graph to add a relationship at that age and distance.' : 'Choose a birth year above to draw a timeline.';
   $('hint').replaceChildren(title, helper);
-  $('add-person').textContent = pendingPerson && placementMode === 'person' ? `Place ${pendingPerson.name || pendingPerson.subtype}` : 'Add person';
+  $('add-person').textContent = '+ Add person';
   $('add-person').classList.toggle('placement-active', placementMode === 'person');
   $('add-event').classList.toggle('placement-active', placementMode === 'event');
-  $('cancel-placement').hidden = !placementMode;
+  $('placement-help').hidden = !placementMode;
+  $('placement-copy').textContent = placementMode === 'person' ? `Place ${pendingPerson?.name || pendingPerson?.subtype || 'this person'}: click when the relationship began, nearer the centre for closer.` : 'Click the graph at the age of the life event.';
+  const panelSelection = track?.id || editingEvent?.id || null;
+  if (panelSelection && panelSelection !== lastPanelSelection && !placementMode) panelOpen = true;
+  lastPanelSelection = panelSelection;
+  document.querySelector('.sidebar').classList.toggle('panel-open', panelOpen && !placementMode);
+  document.querySelector('.sidebar').classList.toggle('placing', !!placementMode);
+  $('panel-toggle').setAttribute('aria-expanded', String(panelOpen || !!placementMode));
+  $('event-editor').hidden = !editingEvent || $('event-dialog').open;
   $('add-person').disabled = !started || editUnavailable;
   $('add-event').disabled = !started || editUnavailable;
   $('editor').hidden = !track;
@@ -768,7 +784,7 @@ function render() {
     swatch.style.setProperty('--line', `var(--${person.category})`);
     button.append(swatch, document.createTextNode(displayName(person)));
     button.addEventListener('click', () => {
-      selected = selected === person.id ? null : person.id;
+      editingEvent = null; selected = selected === person.id ? null : person.id;
       render();
       const i = data.relationships.indexOf(person);
       list.children[i]?.firstElementChild.focus();
@@ -776,9 +792,16 @@ function render() {
     row.append(button);
     list.append(row);
   }
+  const eventList = $('events-list'); eventList.replaceChildren();
+  $('empty-events').hidden = !!data.events.length;
+  for (const item of data.events) {
+    const li = document.createElement('li'), button = document.createElement('button'), small = document.createElement('small');
+    button.type = 'button'; button.append(document.createTextNode(item.label ? `${item.type} · ${item.label}` : item.type));
+    small.textContent = ageText(item.age); button.append(small);
+    button.addEventListener('click', () => openEvent(item.age,item)); li.append(button); eventList.append(li);
+  }
   renderPlot();
   renderSharing();
-  requestAnimationFrame(() => updateTour());
 }
 const observer = new ResizeObserver(() => renderPlot());
 observer.observe(svg);
@@ -837,7 +860,7 @@ svg.addEventListener('pointerdown', event => {
     before: track ? clone(data) : null, selection: selected, ending: track?.ending, moved: false
   };
   if (track) {
-    selected = track.id;
+    editingEvent = null; selected = track.id;
     svg.classList.add('dragging');
   }
 });
@@ -990,7 +1013,9 @@ function openEvent(age, item = null) {
   $('event-type').value = item?.type ?? eventTypes[0];
   $('event-label').value = item?.label ?? '';
   $('event-delete').hidden = !item;
-  $('event-dialog').showModal();
+  selected = null;
+  if (item) { $('event-form-host').append($('event-form')); panelOpen = true; render(); }
+  else { $('event-dialog').append($('event-form')); $('event-dialog').showModal(); }
 }
 $('event-gutter').addEventListener('click', event => {
   const rect=svg.getBoundingClientRect();
@@ -999,7 +1024,7 @@ $('event-gutter').addEventListener('click', event => {
 });
 function setPlacement(mode) {
   if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
-  pendingPerson = null;
+  pendingPerson = null; editingEvent = null;
   placementMode = placementMode === mode ? null : mode;
   selected = null;
   status(placementMode === 'person' ? 'Click the graph where this person should begin.' : placementMode === 'event' ? 'Click the graph at the age of the life event.' : 'Placement cancelled.');
@@ -1008,18 +1033,20 @@ function setPlacement(mode) {
 document.addEventListener('keydown', event => { if (event.key === 'Escape' && placementMode) { placementMode = null; pendingPerson = null; status('Placement cancelled.'); render(); } });
 function startPerson() {
   if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
-  placementMode = null; pendingPerson = null; selected = null; render();
+  placementMode = null; pendingPerson = null; editingEvent = null; selected = null; render();
   openPersonDialog(null, null);
 }
 $('add-person').addEventListener('click', startPerson);
 $('add-event').addEventListener('click', () => setPlacement('event'));
 $('cancel-placement').addEventListener('click', () => { placementMode = null; pendingPerson = null; status('Placement cancelled.'); render(); });
 $('close-editor').addEventListener('click', () => { selected = null; render(); });
-$('event-cancel').addEventListener('click',()=> $('event-dialog').close());
+$('event-cancel').addEventListener('click',()=> { $('event-dialog').close(); editingEvent=null; render(); });
+$('close-event').addEventListener('click',()=> { editingEvent=null; render(); });
+$('panel-toggle').addEventListener('click',()=> { if(placementMode) return; panelOpen=!panelOpen; render(); });
 $('event-delete').addEventListener('click',()=> {
   if (!editingEvent) return;
   remember(); data.events=data.events.filter(item=>item.id!==editingEvent.id);
-  $('event-dialog').close();commit('Life event removed.');
+  $('event-dialog').close();editingEvent=null;commit('Life event removed.');
 });
 $('event-form').addEventListener('submit', event=> {
   event.preventDefault();
@@ -1029,7 +1056,7 @@ $('event-form').addEventListener('submit', event=> {
   remember();
   const item={id:editingEvent?.id??crypto.randomUUID(),age,type:$('event-type').value,label:$('event-label').value.trim()};
   data.events=data.events.filter(existing=>existing.id!==item.id).concat(item).sort((a,b)=>a.age-b.age);
-  $('event-dialog').close();commit('Life event saved. Drag its label or dotted line to move it; click to edit.');
+  $('event-dialog').close();editingEvent=null;commit('Life event saved. Drag its label or dotted line to move it; click to edit.');
 });
 $('cancel').addEventListener('click', () => $('person-dialog').close());
 $('edit').addEventListener('click', () => {
@@ -1042,6 +1069,7 @@ function createPerson(fields, place) {
   if (place[0] < max) points.push([max, place[1]]);
   const track = { id: crypto.randomUUID(), ...fields, ending: 'ongoing', points };
   data.relationships.push(track);
+  hintTrack = track.id;
   return track;
 }
 $('person-form').addEventListener('submit', event => {
@@ -1059,7 +1087,7 @@ $('person-form').addEventListener('submit', event => {
   remember();
   if (track) Object.assign(track, fields);
   else track = createPerson(fields, place);
-  selected = track.id;
+  editingEvent = null; selected = track.id;
   $('person-dialog').close();
   commit();
 });
@@ -1300,78 +1328,6 @@ window.addEventListener('beforeunload', event => {
   event.preventDefault();
   event.returnValue = true;
 });
-let tour = null;
-const tourStages = ['birth', 'event', 'person', 'shape', 'done'];
-function tourCounts() { return { events: data.events.length, people: data.relationships.length, points: data.relationships.reduce((n, p) => n + p.points.length, 0), shape: JSON.stringify(data.relationships.find(p => p.id === selected)?.points) }; }
-function beginTourStage(stage) {
-  placementMode = null; pendingPerson = null;
-  if (stage === 'shape') selected = selected || data.relationships[0]?.id || null;
-  tour = { stage, baseline: tourCounts(), key: null };
-  render();
-}
-function advanceTour() {
-  if (!tour) return;
-  const counts = tourCounts();
-  if (tour.stage === 'birth' && data.birthYear !== null) beginTourStage('event');
-  else if (tour.stage === 'event' && counts.events > tour.baseline.events) beginTourStage('person');
-  else if (tour.stage === 'person' && counts.people > tour.baseline.people) beginTourStage('shape');
-  else if (tour.stage === 'shape' && counts.points >= tour.baseline.points && counts.shape !== tour.baseline.shape) beginTourStage('done');
-}
-function endTour() {
-  tour = null; placementMode = null; pendingPerson = null;
-  document.body.classList.remove('tour-active');
-  $('tour-card').hidden = true; $('tour-spot').hidden = true; render();
-}
-function updateTour() {
-  if (!tour) return;
-  document.body.classList.add('tour-active');
-  const inDialog = $('person-dialog').open || $('event-dialog').open;
-  $('tour-card').hidden = inDialog; $('tour-spot').hidden = inDialog;
-  if (inDialog) return;
-  let target, title, copy, point = null;
-  const stage = tour.stage;
-  if (stage === 'birth') {
-    target = $('birth'); title = 'Start with your birth year'; copy = 'Enter the year here. The month is optional. The graph will run from birth to now.';
-  } else if (stage === 'event') {
-    target = placementMode === 'event' ? svg : $('add-event');
-    title = placementMode === 'event' ? 'Choose when it happened' : 'Remember one turning point';
-    copy = placementMode === 'event' ? 'Click at the age of a move, new school or new job. Time runs down the graph. You can drag the event later.' : 'Click the highlighted Add life event button. A move, school change or new job makes a useful first anchor.';
-  } else if (stage === 'person') {
-    target = placementMode === 'person' ? svg : $('add-person');
-    title = placementMode === 'person' ? `Place ${pendingPerson?.name || pendingPerson?.subtype || 'this person'}` : 'Add someone who matters';
-    copy = placementMode === 'person' ? 'Click where this relationship began: down the graph chooses the age; nearer the centre means closer to you. Either side is fine.' : 'Click Add person, choose their relationship to you, and optionally give them a name. Then you will place their line.';
-  } else if (stage === 'shape') {
-    const path = svg.querySelector(`[data-track="${selected}"]`);
-    target = path || $('add-person');
-    title = path ? 'Try one change in closeness' : 'Add a person to try drawing';
-    copy = path ? 'Drag the highlighted part of this line sideways. Towards the centre means closer; outwards means more distant. Undo lets you try again.' : 'You can skip this step or add a person first.';
-    if (path?.getPointAtLength) { const p = path.getPointAtLength(path.getTotalLength() * .4); point = new DOMPoint(p.x,p.y).matrixTransform(path.getScreenCTM()); }
-  } else {
-    target = $('start-guide'); title = 'You have the basics'; copy = 'Keep adding people and turning points in any order. Save / editing link lets you return later; Publish & share creates a public version.';
-  }
-  const key = `${stage}:${placementMode || ''}`;
-  const rect = target.getBoundingClientRect();
-  let box = {left:rect.left-5,top:rect.top-5,width:rect.width+10,height:rect.height+10};
-  if (target === svg) box = {left:rect.left+8,top:rect.top+80,width:rect.width-16,height:140};
-  if (point) box = {left:point.x-24,top:point.y-24,width:48,height:48};
-  $('tour-title').textContent = title; $('tour-copy').textContent = copy;
-  $('tour-step').textContent = stage === 'done' ? 'Ready to continue' : `Step ${tourStages.indexOf(stage)+1} of 4`;
-  $('tour-skip').hidden = stage === 'done' || stage === 'birth'; $('tour-exit').textContent = stage === 'done' ? 'Finish guide' : 'Exit guide';
-  $('tour-spot').hidden = stage === 'done';
-  const coachTop = innerWidth > 900 ? Math.max(12, Math.min(box.top, innerHeight - $('tour-card').offsetHeight - 12)) : null;
-  $('tour-card').style.top = coachTop === null ? '' : `${coachTop}px`;
-  $('tour-card').style.bottom = coachTop === null ? '' : 'auto';
-  Object.assign($('tour-spot').style,{left:`${box.left}px`,top:`${box.top}px`,width:`${box.width}px`,height:`${box.height}px`});
-  if (tour.key !== key) { tour.key = key; window.scrollBy({top:box.top-Math.min(160,innerHeight*.22),behavior:'instant'}); requestAnimationFrame(updateTour); }
-}
-$('start-guide').addEventListener('click', () => beginTourStage(data.birthYear === null ? 'birth' : 'event'));
-$('tour-exit').addEventListener('click', endTour);
-$('tour-skip').addEventListener('click', () => beginTourStage(tourStages[tourStages.indexOf(tour.stage)+1] || 'done'));
-document.addEventListener('keydown', event => { if (event.key === 'Escape' && tour && !$('person-dialog').open && !$('event-dialog').open) endTour(); });
-window.addEventListener('scroll', () => { if(tour) requestAnimationFrame(updateTour); }, {passive:true});
-window.addEventListener('resize', () => { if(tour) requestAnimationFrame(updateTour); });
-const tourDialogs = new MutationObserver(() => requestAnimationFrame(updateTour));
-for (const dialog of [$('person-dialog'), $('event-dialog')]) tourDialogs.observe(dialog,{attributes:true,attributeFilter:['open']});
 render();
 if (!keepLocalDraft) loadEditingLink();
 </script>
