@@ -133,9 +133,9 @@ dialog .fields{justify-content:end;padding-top:4px}
 }
 .section-heading{display:flex;flex-direction:column;align-items:start;gap:8px;margin:16px 0 6px}.section-heading h2{font-size:1.3rem}.section-heading button{width:100%;text-align:left}
 #events-list{list-style:none;margin:0;padding:0}#events-list button{width:100%;text-align:left;border-color:transparent;overflow-wrap:anywhere}#events-list small{display:block;color:var(--muted)}
-#placement-help{padding:10px 0;border-bottom:1px solid var(--rule)}#placement-help button{margin-top:8px}#event-editor{border-bottom:1px solid var(--rule);padding-bottom:16px}#event-editor form{display:grid;gap:10px}#event-editor h2{margin:8px 0}#close-event{float:right}
+#event-editor{border-bottom:1px solid var(--rule);padding-bottom:16px}#event-editor form{display:grid;gap:10px}#event-editor h2{margin:8px 0}#close-event{float:right}
 #panel-toggle{display:none}.sidebar{position:sticky;top:12px;align-self:start;max-height:calc(100dvh - 24px);overflow:auto;padding-right:8px}
-@media(max-width:680px){body{padding-bottom:76px}.sidebar{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:20;background:var(--paper);border-top:1px solid var(--ink);padding:0;max-height:55dvh;box-shadow:0 -3px 14px #24241f15}#panel-toggle{position:sticky;top:0;z-index:2;background:var(--paper);display:flex;justify-content:space-between;width:100%;min-height:52px;border:0;padding:12px 16px}#panel-body{display:none;padding:0 16px 16px}.sidebar.panel-open #panel-body{display:block}.editor:not([hidden]){position:static;max-height:none;box-shadow:none;border:0;padding:12px 0;margin:0}.section-heading{flex-direction:row;align-items:center;justify-content:space-between}.section-heading button{width:auto}#relationships{display:block}.sidebar.placing #panel-body{display:block}.sidebar.placing #panel-body>:not(#placement-help){display:none}#panel-toggle span{transition:transform .15s}.panel-open #panel-toggle span{transform:rotate(180deg)}}
+@media(max-width:680px){body{padding-bottom:76px}.sidebar{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:20;background:var(--paper);border-top:1px solid var(--ink);padding:0;max-height:55dvh;box-shadow:0 -3px 14px #24241f15}#panel-toggle{position:sticky;top:0;z-index:2;background:var(--paper);display:flex;justify-content:space-between;width:100%;min-height:52px;border:0;padding:12px 16px}#panel-body{display:none;padding:0 16px 16px}.sidebar.panel-open #panel-body{display:block}.editor:not([hidden]){position:static;max-height:none;box-shadow:none;border:0;padding:12px 0;margin:0}.section-heading{flex-direction:row;align-items:center;justify-content:space-between}.section-heading button{width:auto}#relationships{display:block}.sidebar.placing #panel-body{display:block}.sidebar.placing #panel-body>:not(.placement-heading){display:none}#panel-toggle span{transition:transform .15s}.panel-open #panel-toggle span{transform:rotate(180deg)}}
 </style>
 </head>
 <body>
@@ -177,7 +177,6 @@ dialog .fields{justify-content:end;padding-top:4px}
   <aside class="sidebar" aria-label="People and life events">
     <button id="panel-toggle" type="button" aria-expanded="false" aria-controls="panel-body">People &amp; life events <span aria-hidden="true">↑</span></button>
     <div id="panel-body">
-    <div id="placement-help" hidden><p id="placement-copy" class="fine"></p><button type="button" id="cancel-placement">Cancel placement</button></div>
     <section id="event-editor" hidden aria-label="Selected life event"><button type="button" id="close-event">Done</button><h2>Life event</h2><p class="fine">Drag its label or dotted line to move it.</p><div id="event-form-host"></div></section>
     <section class="editor" id="editor" hidden aria-label="Selected relationship">
       <button type="button" id="close-editor" class="editor-close">Done</button>
@@ -740,11 +739,12 @@ function render() {
   $('undo').disabled = !history.length;
   document.querySelector('.tools').inert = loadingEdit || saving;
   document.querySelector('.workspace').inert = editUnavailable || saving;
-  $('add-person').textContent = '+ Add person';
+  $('add-person').textContent = placementMode === 'person' ? 'Cancel placement' : '+ Add person';
+  $('add-event').textContent = placementMode === 'event' ? 'Cancel placement' : '+ Add event';
+  $('add-person').parentElement.classList.toggle('placement-heading', placementMode === 'person');
+  $('add-event').parentElement.classList.toggle('placement-heading', placementMode === 'event');
   $('add-person').classList.toggle('placement-active', placementMode === 'person');
   $('add-event').classList.toggle('placement-active', placementMode === 'event');
-  $('placement-help').hidden = !placementMode;
-  $('placement-copy').textContent = placementMode === 'person' ? `Place ${pendingPerson?.name || pendingPerson?.subtype || 'this person'}: click when the relationship began, nearer the centre for closer.` : 'Click the graph at the age of the life event.';
   const panelSelection = track?.id || editingEvent?.id || null;
   if (panelSelection && panelSelection !== lastPanelSelection && !placementMode) panelOpen = true;
   lastPanelSelection = panelSelection;
@@ -1108,9 +1108,8 @@ function startPerson() {
   placementMode = null; pendingPerson = null; editingEvent = null; selected = null; render();
   openPersonDialog(null, null);
 }
-$('add-person').addEventListener('click', startPerson);
+$('add-person').addEventListener('click', () => placementMode === 'person' ? setPlacement('person') : startPerson());
 $('add-event').addEventListener('click', () => setPlacement('event'));
-$('cancel-placement').addEventListener('click', () => { placementMode = null; pendingPerson = null; status('Placement cancelled.'); render(); });
 $('close-editor').addEventListener('click', () => { selected = null; render(); });
 $('event-cancel').addEventListener('click',()=> { $('event-dialog').close(); editingEvent=null; render(); });
 $('close-event').addEventListener('click',()=> { editingEvent=null; render(); });
