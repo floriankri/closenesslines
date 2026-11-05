@@ -937,6 +937,7 @@ svg.addEventListener('pointermove', event => {
   if (!drag.moved) {
     if (Math.hypot(event.clientX - drag.x, event.clientY - drag.y) < 5) return;
     drag.moved = true;
+    if (drag.track) $('hint').hidden = true;
     if (drag.track && drag.index === -1) {
       const age = drag.place[0];
       const point = drag.track.points;
@@ -969,6 +970,7 @@ function finish(event, cancelled) {
     const points = gesture.track.points;
     if (!gesture.moved && gesture.index > 0 && gesture.index < points.length - 1) points.splice(gesture.index, 1);
     if (JSON.stringify(data) !== JSON.stringify(gesture.before)) {
+      dismissedHints.add('bend');
       remember(gesture.before, gesture.selection);
       commit();
     } else render();
@@ -1034,6 +1036,7 @@ svg.addEventListener('keydown', event => {
     const delta = event.shiftKey ? 5 : 1;
     movePoint(track, index, age + direction[0] * delta, distance + direction[1] * delta * .025, track.ending);
     if (JSON.stringify(data) !== JSON.stringify(snapshot)) {
+      dismissedHints.add('bend');
       remember(snapshot);
       commit();
       svg.querySelector(`[data-point="${index}"]`)?.focus();
@@ -1042,6 +1045,7 @@ svg.addEventListener('keydown', event => {
     event.preventDefault();
     remember();
     points.splice(index, 1);
+    dismissedHints.add('bend');
     commit();
     svg.querySelector(`[data-point="${index}"]`)?.focus();
   }
