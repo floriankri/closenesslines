@@ -68,7 +68,7 @@ svg{position:relative;z-index:1;overflow:visible;display:block;width:100%;height
 .handle .knob{fill:var(--paper);stroke:var(--line);stroke-width:1.8}
 .handle .knob.terminal{stroke:var(--accent)}
 .dragging .hit,.dragging .handle{cursor:grabbing}
-.hint{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);width:min(82%,320px);padding:16px 18px;background:var(--paper);border:1px solid var(--rule);text-align:center;pointer-events:none}
+.hint{width:min(760px,100%);margin:0 auto 14px;padding:10px 14px;border-left:2px solid var(--accent);background:#f0ebde}
 .hint strong{display:block;font-weight:400;font-size:1.27rem}
 .hint small{display:block;color:var(--muted);font:500 .81rem/1.5 var(--ui);margin-top:4px}
 .sidebar{border-left:1px solid var(--rule);padding:16px 0 24px 18px;min-width:0}
@@ -157,6 +157,7 @@ dialog .fields{justify-content:end;padding-top:4px}
   </div>
 </div>
 <p id="status" role="status" aria-live="polite"></p>
+<div class="hint" id="hint" aria-live="polite"></div>
 <div class="workspace">
   <section class="board" aria-label="Timeline">
     <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span title="Acquaintance">Acquaint.</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span title="Acquaintance">Acquaint.</span></div></div>
@@ -164,7 +165,6 @@ dialog .fields{justify-content:end;padding-top:4px}
       <button type="button" id="event-gutter" class="event-gutter" aria-label="Add life event at an age" title="Click beside an age to add a life event"><span>+</span></button>
       <svg id="plot" aria-label="Closeness graph. Age increases from top to bottom." aria-describedby="plot-help"></svg>
       <div class="line-tooltip" id="line-tooltip" role="tooltip" hidden></div>
-      <div class="hint" id="hint"></div>
     </div>
     <div class="scale-control"><label for="timeline-height">Timeline length</label><input id="timeline-height" type="range" min="840" max="3360" step="40" value="840" aria-valuetext="Standard length"><output id="height-value" for="timeline-height">1×</output></div>
   </section>
@@ -739,11 +739,27 @@ function render() {
   $('undo').disabled = !history.length;
   document.querySelector('.tools').inert = loadingEdit || saving;
   document.querySelector('.workspace').inert = editUnavailable || saving;
-  $('hint').hidden = !!data.relationships.length || !!placementMode;
+  $('hint').hidden = editUnavailable;
   const title = document.createElement('strong');
   const helper = document.createElement('small');
-  title.textContent = started ? 'Start with one person.' : 'Every timeline begins at birth.';
-  helper.textContent = started ? 'Tap anywhere on the graph to add a relationship at that age and distance.' : 'Choose a birth year above to draw a timeline.';
+  const mobile = window.matchMedia('(max-width:680px)').matches;
+  const panelPlace = mobile ? 'Open People & life events at the bottom' : 'Use the panel on the right';
+  if (!started) {
+    title.textContent = 'Start with your birth year ↑';
+    helper.textContent = 'Enter the year above. Your timeline will run from birth to now; the month is optional.';
+  } else if (placementMode) {
+    title.textContent = placementMode === 'person' ? `Place ${pendingPerson?.name || pendingPerson?.subtype || 'this person'} on the graph ↓` : 'Choose when the life event happened ↓';
+    helper.textContent = placementMode === 'person' ? 'Click at the age the relationship began. Nearer the centre means closer to you. You can move the line afterwards.' : 'Click next to the age on the graph, then choose the event. Drag its dotted line later to adjust the timing.';
+  } else if (editingEvent) {
+    title.textContent = 'Edit this event in the panel';
+    helper.textContent = 'Change its type or label there. Drag its label or dotted line on the graph to move it in time.';
+  } else if (track) {
+    title.textContent = 'Drag this line to show how closeness changed';
+    helper.textContent = 'Towards the centre means closer. Drag adds a bend; tap an inside point to remove it. Undo lets you try again.';
+  } else {
+    title.textContent = 'Add people and turning points';
+    helper.textContent = `${panelPlace}: choose + Add person or + Add event. Select a person to edit them, then drag their line to show changes in closeness.`;
+  }
   $('hint').replaceChildren(title, helper);
   $('add-person').textContent = '+ Add person';
   $('add-person').classList.toggle('placement-active', placementMode === 'person');
@@ -803,7 +819,7 @@ function render() {
   renderPlot();
   renderSharing();
 }
-const observer = new ResizeObserver(() => renderPlot());
+const observer = new ResizeObserver(() => render());
 observer.observe(svg);
 
 function locate(event, bounded = true) {
