@@ -39,7 +39,6 @@ h2{font-size:1.65rem;font-weight:400;line-height:1.12;letter-spacing:-.03em;over
 .event-gutter{position:absolute;left:-100px;top:0;bottom:0;width:96px;padding:0;border:0;border-right:1px dashed var(--rule);color:var(--accent);background:transparent;cursor:crosshair}.event-gutter span{position:absolute;top:12px;left:6px}.event-mark{cursor:ns-resize;touch-action:none}.event-text{font:500 9px var(--ui);fill:var(--accent);paint-order:stroke;stroke:var(--paper);stroke-width:3px}
 .canvas-actions{display:flex;gap:8px;align-items:center;justify-content:center;padding:10px 8px;border-bottom:1px solid var(--rule);font:500 .78rem var(--ui)}
 .canvas-actions .placement-active{background:var(--accent);border-color:var(--accent);color:var(--paper)}
-.guide{max-width:760px;margin:14px auto;border:1px solid var(--rule);padding:12px 14px;background:#f0ebde}.guide summary{cursor:pointer;font:650 .8rem var(--ui);letter-spacing:.04em}.guide p{margin:7px 0;color:var(--muted);font:500 .78rem/1.45 var(--ui)}.guide-list{display:grid;gap:6px;margin:9px 0 0;padding:0;list-style:none}.guide-list button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border-color:transparent;background:transparent}.guide-list button::before{content:'→';font-size:1rem;color:var(--accent)}.guide-list button[aria-pressed="true"]::before{content:'✓'}.guide-list button:hover{border-color:var(--rule)}
 .axis-key{position:sticky;top:0;z-index:2;background:var(--paper);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px;border-bottom:1px solid var(--rule);padding:9px 8px;color:var(--muted)}
 .axis-key strong{background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:2px}
 .plot{position:relative;min-height:840px}
@@ -126,6 +125,11 @@ dialog .fields{justify-content:end;padding-top:4px}
   .page-heading + .tools{border-top:0}
   .page-heading + article .essay-card{border-top:0}
 }
+.guide-launch{max-width:760px;margin:12px auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+#tour-spot{position:fixed;z-index:30;border:3px solid var(--accent);border-radius:8px;box-shadow:0 0 0 5px #a33d2d16;pointer-events:none}
+#tour-card{position:fixed;z-index:31;right:18px;bottom:18px;width:min(320px,calc(100% - 28px));padding:16px;background:var(--paper);border:1px solid var(--accent);box-shadow:0 4px 24px #24241f25}
+#tour-card h2{font-size:1.4rem;margin:5px 0 8px}#tour-copy{font:500 .85rem/1.5 var(--ui);margin-bottom:12px}
+@media(max-width:680px){#tour-card{left:14px;right:14px;bottom:10px}.tour-active .editor{display:none!important}}
 </style>
 </head>
 <body>
@@ -153,17 +157,7 @@ dialog .fields{justify-content:end;padding-top:4px}
   </div>
 </div>
 <p id="status" role="status" aria-live="polite"></p>
-<details class="guide" id="guide" open>
-  <summary>Build your timeline</summary>
-  <p>Time goes down; closer to the centre means closer to you. Work in any order, or close this guide and draw freely.</p>
-  <ul class="guide-list">
-    <li><button type="button" data-guide="event">Add a move, school, university or job change</button></li>
-    <li><button type="button" data-guide="person">Add important people</button></li>
-    <li><button type="button" data-guide="shape">Shape one line over time</button></li>
-    <li><button type="button" data-guide="review">Review and share</button></li>
-  </ul>
-  <p>Two parent lines are a starting point. Edit or remove them; add only the people who matter to you.</p>
-</details>
+<div class="guide-launch"><button type="button" id="start-guide">Guide me through it</button><span class="fine">A short walkthrough on your own timeline.</span></div>
 <div class="workspace">
   <section class="board" aria-label="Timeline">
     <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span title="Acquaintance">Acquaint.</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span title="Acquaintance">Acquaint.</span></div></div>
@@ -241,6 +235,11 @@ dialog .fields{justify-content:end;padding-top:4px}
     <div class="fields"><button type="button" id="event-delete" class="danger">Delete</button><button type="button" id="event-cancel">Cancel</button><button type="submit" class="primary">Save event</button></div>
   </form>
 </dialog>
+<div id="tour-spot" aria-hidden="true" hidden></div>
+<section id="tour-card" aria-label="Timeline walkthrough" hidden>
+  <p id="tour-step" class="panel-kicker"></p><h2 id="tour-title"></h2><p id="tour-copy" aria-live="polite"></p>
+  <div class="actions"><button id="tour-skip" type="button">Skip step</button><button id="tour-exit" type="button">Exit guide</button></div>
+</section>
 <noscript><p>Enable JavaScript to draw a timeline.</p></noscript>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
@@ -251,8 +250,6 @@ const $ = id => document.getElementById(id);
 const svg = $('plot');
 const ns = 'http://www.w3.org/2000/svg';
 const storageKey = 'people-we-keep.creator.v1';
-try { $('guide').open = localStorage.getItem('closeness.guide.closed') !== 'true'; } catch {}
-$('guide').addEventListener('toggle', () => { try { localStorage.setItem('closeness.guide.closed', String(!$('guide').open)); } catch {} });
 const categories = {
   family: {
     label: 'Family', fallback: 'Family member',
@@ -411,6 +408,7 @@ function remember(before = data, selection = selected) {
 function commit(message) {
   if (keepLocalDraft) storeDraft(message);
   else status(message || 'Changes are in this tab until you save them.');
+  advanceTour();
   render();
 }
 function undo() {
@@ -780,6 +778,7 @@ function render() {
   }
   renderPlot();
   renderSharing();
+  requestAnimationFrame(() => updateTour());
 }
 const observer = new ResizeObserver(() => renderPlot());
 observer.observe(svg);
@@ -1016,13 +1015,6 @@ $('add-person').addEventListener('click', startPerson);
 $('add-event').addEventListener('click', () => setPlacement('event'));
 $('cancel-placement').addEventListener('click', () => { placementMode = null; pendingPerson = null; status('Placement cancelled.'); render(); });
 $('close-editor').addEventListener('click', () => { selected = null; render(); });
-for (const button of document.querySelectorAll('[data-guide]')) button.addEventListener('click', () => {
-  const action = button.dataset.guide;
-  if (action === 'event') setPlacement('event');
-  else if (action === 'person') startPerson();
-  else if (action === 'shape') { $('guide').open = false; selected = selected || data.relationships[0]?.id || null; render(); status('Drag the selected line to show a change in closeness. Use Undo to try again.'); }
-  else if (action === 'review') { $('tagline').focus(); status('Review the public tagline, then choose Publish & share or Save / editing link.'); }
-});
 $('event-cancel').addEventListener('click',()=> $('event-dialog').close());
 $('event-delete').addEventListener('click',()=> {
   if (!editingEvent) return;
@@ -1308,6 +1300,78 @@ window.addEventListener('beforeunload', event => {
   event.preventDefault();
   event.returnValue = true;
 });
+let tour = null;
+const tourStages = ['birth', 'event', 'person', 'shape', 'done'];
+function tourCounts() { return { events: data.events.length, people: data.relationships.length, points: data.relationships.reduce((n, p) => n + p.points.length, 0), shape: JSON.stringify(data.relationships.find(p => p.id === selected)?.points) }; }
+function beginTourStage(stage) {
+  placementMode = null; pendingPerson = null;
+  if (stage === 'shape') selected = selected || data.relationships[0]?.id || null;
+  tour = { stage, baseline: tourCounts(), key: null };
+  render();
+}
+function advanceTour() {
+  if (!tour) return;
+  const counts = tourCounts();
+  if (tour.stage === 'birth' && data.birthYear !== null) beginTourStage('event');
+  else if (tour.stage === 'event' && counts.events > tour.baseline.events) beginTourStage('person');
+  else if (tour.stage === 'person' && counts.people > tour.baseline.people) beginTourStage('shape');
+  else if (tour.stage === 'shape' && counts.points >= tour.baseline.points && counts.shape !== tour.baseline.shape) beginTourStage('done');
+}
+function endTour() {
+  tour = null; placementMode = null; pendingPerson = null;
+  document.body.classList.remove('tour-active');
+  $('tour-card').hidden = true; $('tour-spot').hidden = true; render();
+}
+function updateTour() {
+  if (!tour) return;
+  document.body.classList.add('tour-active');
+  const inDialog = $('person-dialog').open || $('event-dialog').open;
+  $('tour-card').hidden = inDialog; $('tour-spot').hidden = inDialog;
+  if (inDialog) return;
+  let target, title, copy, point = null;
+  const stage = tour.stage;
+  if (stage === 'birth') {
+    target = $('birth'); title = 'Start with your birth year'; copy = 'Enter the year here. The month is optional. The graph will run from birth to now.';
+  } else if (stage === 'event') {
+    target = placementMode === 'event' ? svg : $('add-event');
+    title = placementMode === 'event' ? 'Choose when it happened' : 'Remember one turning point';
+    copy = placementMode === 'event' ? 'Click at the age of a move, new school or new job. Time runs down the graph. You can drag the event later.' : 'Click the highlighted Add life event button. A move, school change or new job makes a useful first anchor.';
+  } else if (stage === 'person') {
+    target = placementMode === 'person' ? svg : $('add-person');
+    title = placementMode === 'person' ? `Place ${pendingPerson?.name || pendingPerson?.subtype || 'this person'}` : 'Add someone who matters';
+    copy = placementMode === 'person' ? 'Click where this relationship began: down the graph chooses the age; nearer the centre means closer to you. Either side is fine.' : 'Click Add person, choose their relationship to you, and optionally give them a name. Then you will place their line.';
+  } else if (stage === 'shape') {
+    const path = svg.querySelector(`[data-track="${selected}"]`);
+    target = path || $('add-person');
+    title = path ? 'Try one change in closeness' : 'Add a person to try drawing';
+    copy = path ? 'Drag the highlighted part of this line sideways. Towards the centre means closer; outwards means more distant. Undo lets you try again.' : 'You can skip this step or add a person first.';
+    if (path?.getPointAtLength) { const p = path.getPointAtLength(path.getTotalLength() * .4); point = new DOMPoint(p.x,p.y).matrixTransform(path.getScreenCTM()); }
+  } else {
+    target = $('start-guide'); title = 'You have the basics'; copy = 'Keep adding people and turning points in any order. Save / editing link lets you return later; Publish & share creates a public version.';
+  }
+  const key = `${stage}:${placementMode || ''}`;
+  const rect = target.getBoundingClientRect();
+  let box = {left:rect.left-5,top:rect.top-5,width:rect.width+10,height:rect.height+10};
+  if (target === svg) box = {left:rect.left+8,top:rect.top+80,width:rect.width-16,height:140};
+  if (point) box = {left:point.x-24,top:point.y-24,width:48,height:48};
+  $('tour-title').textContent = title; $('tour-copy').textContent = copy;
+  $('tour-step').textContent = stage === 'done' ? 'Ready to continue' : `Step ${tourStages.indexOf(stage)+1} of 4`;
+  $('tour-skip').hidden = stage === 'done' || stage === 'birth'; $('tour-exit').textContent = stage === 'done' ? 'Finish guide' : 'Exit guide';
+  $('tour-spot').hidden = stage === 'done';
+  const coachTop = innerWidth > 900 ? Math.max(12, Math.min(box.top, innerHeight - $('tour-card').offsetHeight - 12)) : null;
+  $('tour-card').style.top = coachTop === null ? '' : `${coachTop}px`;
+  $('tour-card').style.bottom = coachTop === null ? '' : 'auto';
+  Object.assign($('tour-spot').style,{left:`${box.left}px`,top:`${box.top}px`,width:`${box.width}px`,height:`${box.height}px`});
+  if (tour.key !== key) { tour.key = key; window.scrollBy({top:box.top-Math.min(160,innerHeight*.22),behavior:'instant'}); requestAnimationFrame(updateTour); }
+}
+$('start-guide').addEventListener('click', () => beginTourStage(data.birthYear === null ? 'birth' : 'event'));
+$('tour-exit').addEventListener('click', endTour);
+$('tour-skip').addEventListener('click', () => beginTourStage(tourStages[tourStages.indexOf(tour.stage)+1] || 'done'));
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && tour && !$('person-dialog').open && !$('event-dialog').open) endTour(); });
+window.addEventListener('scroll', () => { if(tour) requestAnimationFrame(updateTour); }, {passive:true});
+window.addEventListener('resize', () => { if(tour) requestAnimationFrame(updateTour); });
+const tourDialogs = new MutationObserver(() => requestAnimationFrame(updateTour));
+for (const dialog of [$('person-dialog'), $('event-dialog')]) tourDialogs.observe(dialog,{attributes:true,attributeFilter:['open']});
 render();
 if (!keepLocalDraft) loadEditingLink();
 </script>
