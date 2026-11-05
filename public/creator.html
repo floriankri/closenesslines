@@ -820,7 +820,7 @@ function positionHint() {
     if (!marker) return;
     const r = marker.getBoundingClientRect(); target = point(bounds.left + 70, r.bottom);
     title = 'Move this moment'; copy = 'Drag its label or dotted line up or down. Click it to edit the details.';
-  } else if (activeTrack()) {
+  } else if (activeTrack() && !dismissedHints.has('bend')) {
     key = 'bend';
     const r = svg.querySelector('.handle')?.getBoundingClientRect();
     if (!r) return;
@@ -970,7 +970,7 @@ function finish(event, cancelled) {
     const points = gesture.track.points;
     if (!gesture.moved && gesture.index > 0 && gesture.index < points.length - 1) points.splice(gesture.index, 1);
     if (JSON.stringify(data) !== JSON.stringify(gesture.before)) {
-      dismissedHints.add('bend');
+      dismissedHints.add('bend'); idleHint = 'event';
       remember(gesture.before, gesture.selection);
       commit();
     } else render();
@@ -1036,7 +1036,7 @@ svg.addEventListener('keydown', event => {
     const delta = event.shiftKey ? 5 : 1;
     movePoint(track, index, age + direction[0] * delta, distance + direction[1] * delta * .025, track.ending);
     if (JSON.stringify(data) !== JSON.stringify(snapshot)) {
-      dismissedHints.add('bend');
+      dismissedHints.add('bend'); idleHint = 'event';
       remember(snapshot);
       commit();
       svg.querySelector(`[data-point="${index}"]`)?.focus();
@@ -1045,7 +1045,7 @@ svg.addEventListener('keydown', event => {
     event.preventDefault();
     remember();
     points.splice(index, 1);
-    dismissedHints.add('bend');
+    dismissedHints.add('bend'); idleHint = 'event';
     commit();
     svg.querySelector(`[data-point="${index}"]`)?.focus();
   }
