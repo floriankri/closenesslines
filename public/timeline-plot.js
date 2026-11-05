@@ -118,7 +118,25 @@ const ClosenessPlot = (() => {
     const accent = 'var(--accent, #a33d2d)';
     const paper = preview ? '#f0ebdf' : 'var(--paper, #f7f4eb)';
     group.append(horizontalRule(0, rule));
-    if (!preview) {
+    if (preview) {
+      // Keep the small gallery cards legible without turning them into a second
+      // graph: a pair of age and closeness guides gives the curves some context,
+      // while the actual relationship geometry remains untouched.
+      const previewGuide = attributes => node('line', {
+        stroke: rule, 'stroke-width': 1, 'stroke-dasharray': '2 4', opacity: .42,
+        'pointer-events': 'none', ...attributes
+      });
+      if (span > 2) {
+        for (const fraction of [1 / 3, 2 / 3]) {
+          const guideY = y(span * fraction);
+          group.append(previewGuide({ x1: 7, x2: width - 7, y1: guideY, y2: guideY }));
+        }
+      }
+      for (const fraction of [.5, -.5]) {
+        const guideX = x(fraction);
+        group.append(previewGuide({ x1: guideX, x2: guideX, y1: top, y2: bottom }));
+      }
+    } else {
       for (const guideX of scalePositions(svg)) group.append(node('line', {
         x1: guideX, x2: guideX, y1: top, y2: bottom, stroke: rule,
         'stroke-width': 1, 'stroke-dasharray': '3 5', opacity: .6, 'pointer-events': 'none'
