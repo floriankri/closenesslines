@@ -68,9 +68,15 @@ svg{position:relative;z-index:1;overflow:visible;display:block;width:100%;height
 .handle .knob{fill:var(--paper);stroke:var(--line);stroke-width:1.8}
 .handle .knob.terminal{stroke:var(--accent)}
 .dragging .hit,.dragging .handle{cursor:grabbing}
-.hint{width:min(760px,100%);margin:0 auto 14px;padding:10px 14px;border-left:2px solid var(--accent);background:#f0ebde}
-.hint strong{display:block;font-weight:400;font-size:1.27rem}
-.hint small{display:block;color:var(--muted);font:500 .81rem/1.5 var(--ui);margin-top:4px}
+.hint{position:fixed;z-index:25;width:230px;max-width:calc(100vw - 24px);padding:12px 30px 12px 14px;border:1px solid var(--rule);border-radius:8px;background:var(--paper);box-shadow:0 4px 18px #24241f20}
+.hint::before{content:"";position:absolute;left:var(--tip,24px);top:-7px;width:12px;height:12px;background:var(--paper);border-left:1px solid var(--rule);border-top:1px solid var(--rule);transform:rotate(45deg)}
+.hint.above::before{top:auto;bottom:-7px;transform:rotate(225deg)}
+@media(min-width:681px){.section-heading{display:flex;align-items:center;justify-content:space-between}.section-heading button{width:auto;padding:4px 0;border:0;background:transparent;color:var(--muted);font-size:.75rem}}
+.hint strong{display:block;font:600 .85rem/1.4 var(--ui)}
+.hint small{display:block;color:var(--muted);font:500 .78rem/1.5 var(--ui);margin-top:5px}
+.hint .dismiss-hint{position:absolute;right:3px;top:3px;border:0;padding:4px 7px;background:transparent;font-size:18px}
+.hint .next-hint{margin-top:8px;padding:4px 0;border:0;border-bottom:1px solid var(--ink);font-size:.75rem;background:transparent}
+
 .sidebar{border-left:1px solid var(--rule);padding:16px 0 24px 18px;min-width:0}
 .sidebar p:not(.panel-kicker),.fine{color:var(--muted);font:500 .81rem/1.55 var(--ui)}
 .editor{padding:0 0 16px;margin:0 0 14px;border-bottom:1px solid var(--rule)}
@@ -157,7 +163,7 @@ dialog .fields{justify-content:end;padding-top:4px}
   </div>
 </div>
 <p id="status" role="status" aria-live="polite"></p>
-<div class="hint" id="hint" aria-live="polite"></div>
+<div class="hint" id="hint" aria-live="polite" hidden></div>
 <div class="workspace">
   <section class="board" aria-label="Timeline">
     <div class="axis-key"><span>← Farther</span><strong>You ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span title="Acquaintance">Acquaint.</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span title="Acquaintance">Acquaint.</span></div></div>
@@ -197,8 +203,8 @@ dialog .fields{justify-content:end;padding-top:4px}
     <div class="section-heading"><h2>Life events</h2><button type="button" id="add-event">+ Add event</button></div>
     <p class="fine" id="empty-events">Moves, school, work and other turning points.</p><ul id="events-list"></ul>
     <details class="instructions">
-      <summary>How to draw</summary>
-      <p id="plot-help">Use + Add person or + Add event in this panel. You can also tap blank graph space to start a relationship. Drag its line to add a point. Drag a point to move it, or tap an inside point to remove it.</p>
+      <summary>How to draw</summary><button type="button" id="show-hints">Show hints</button>
+      <p id="plot-help">Click blank graph space where a relationship began. On desktop, click beside the ages to add a life event. The Add buttons are an alternative, and work with a keyboard too. Drag its line to add a point. Drag a point to move it, or tap an inside point to remove it.</p>
       <p>Drag the end earlier or toward either outer edge to fade it. Choose <em>Death</em> to end it with a red ring. A line can move to either side; only its distance from you matters.</p>
       <p>With a point focused, use the arrow keys to move it or Delete to remove an inside point.</p>
       <p>Add a birth month for a more precise position of Now.</p>
@@ -719,11 +725,6 @@ function renderPlot(restoreFocus) {
     });
     fragment.append(marker);
   }
-  const hinted = data.relationships.find(item => item.id === hintTrack);
-  if (hinted && hinted.points.length <= 2) {
-    const [age,distance] = hinted.points[0];
-    fragment.append(element('text',{x:Math.max(8,Math.min(width-160,x(distance)+10)),y:Math.min(endY-12,y(age)+22),class:'tick','pointer-events':'none'},'Drag to show closeness'));
-  }
   svg.replaceChildren(fragment);
   if (restoreFocus !== undefined) svg.querySelector(`[data-point="${restoreFocus}"]`)?.focus();
 }
@@ -739,28 +740,6 @@ function render() {
   $('undo').disabled = !history.length;
   document.querySelector('.tools').inert = loadingEdit || saving;
   document.querySelector('.workspace').inert = editUnavailable || saving;
-  $('hint').hidden = editUnavailable;
-  const title = document.createElement('strong');
-  const helper = document.createElement('small');
-  const mobile = window.matchMedia('(max-width:680px)').matches;
-  const panelPlace = mobile ? 'Open People & life events at the bottom' : 'Use the panel on the right';
-  if (!started) {
-    title.textContent = 'Start with your birth year ↑';
-    helper.textContent = 'Enter the year above. Your timeline will run from birth to now; the month is optional.';
-  } else if (placementMode) {
-    title.textContent = placementMode === 'person' ? `Place ${pendingPerson?.name || pendingPerson?.subtype || 'this person'} on the graph ↓` : 'Choose when the life event happened ↓';
-    helper.textContent = placementMode === 'person' ? 'Click at the age the relationship began. Nearer the centre means closer to you. You can move the line afterwards.' : 'Click next to the age on the graph, then choose the event. Drag its dotted line later to adjust the timing.';
-  } else if (editingEvent) {
-    title.textContent = 'Edit this event in the panel';
-    helper.textContent = 'Change its type or label there. Drag its label or dotted line on the graph to move it in time.';
-  } else if (track) {
-    title.textContent = 'Drag this line to show how closeness changed';
-    helper.textContent = 'Towards the centre means closer. Drag adds a bend; tap an inside point to remove it. Undo lets you try again.';
-  } else {
-    title.textContent = 'Add people and turning points';
-    helper.textContent = `${panelPlace}: choose + Add person or + Add event. Select a person to edit them, then drag their line to show changes in closeness.`;
-  }
-  $('hint').replaceChildren(title, helper);
   $('add-person').textContent = '+ Add person';
   $('add-person').classList.toggle('placement-active', placementMode === 'person');
   $('add-event').classList.toggle('placement-active', placementMode === 'event');
@@ -818,7 +797,80 @@ function render() {
   }
   renderPlot();
   renderSharing();
+  requestAnimationFrame(positionHint);
 }
+// Hints describe the gesture at its target, without changing the editing flow.
+const dismissedHints = new Set();
+let idleHint = 'person';
+function positionHint() {
+  const bubble = $('hint');
+  bubble.hidden = true;
+  if (editUnavailable || saving || document.querySelector('dialog[open]') || drag || eventDrag) return;
+  const mobile = matchMedia('(max-width:680px)').matches;
+  const bounds = svg.getBoundingClientRect();
+  let key, title, copy, target;
+  const point = (x, y) => ({x, y});
+  const under = node => { const r = node.getBoundingClientRect(); return point(r.left + r.width / 2, r.bottom); };
+  if (data.birthYear === null) {
+    key = 'birth'; target = under($('birth'));
+    title = 'Start here'; copy = 'Enter your birth year. The month is optional.';
+  } else if (editingEvent) {
+    key = 'event-edit';
+    const marker = svg.querySelector(`[data-event="${editingEvent.id}"]`);
+    if (!marker) return;
+    const r = marker.getBoundingClientRect(); target = point(bounds.left + 70, r.bottom);
+    title = 'Move this moment'; copy = 'Drag its label or dotted line up or down. Click it to edit the details.';
+  } else if (activeTrack()) {
+    key = 'bend';
+    const r = svg.querySelector('.handle')?.getBoundingClientRect();
+    if (!r) return;
+    target = point(r.left + r.width / 2, r.bottom);
+    title = 'Shape the relationship'; copy = 'Drag the line to add a bend. Closer to the centre means closer to you. Tap an inside point to remove it.';
+  } else if (placementMode) {
+    key = 'place-' + placementMode;
+    target = point(bounds.left + bounds.width * .6, bounds.top + 80);
+    title = 'Choose the starting moment'; copy = placementMode === 'event' ? 'Click at the age this event happened.' : 'Click at the age you met, nearer the centre for a closer relationship.';
+  } else if (idleHint === 'event') {
+    key = 'event';
+    if (mobile) {
+      target = under(panelOpen ? $('add-event') : $('panel-toggle'));
+      target.y = (panelOpen ? $('add-event') : $('panel-toggle')).getBoundingClientRect().top;
+      title = 'Add a turning point'; copy = 'Open People & life events, then Add event. Choose its moment on the graph.';
+    } else {
+      const r = $('event-gutter').getBoundingClientRect();
+      target = point(r.left + r.width / 2, bounds.top + 100);
+      title = 'Life events go here'; copy = 'Click in this margin beside an age to add a move, school or new job. Drag the dotted line to move it later.';
+    }
+  } else {
+    key = 'person'; target = point(bounds.left + bounds.width * .68, bounds.top + 90);
+    title = 'Click here to add someone'; copy = 'Any empty space works. Up or down sets when you met; distance from the centre sets how close you were.';
+  }
+  if (dismissedHints.has(key) || target.y < 12 || target.y > innerHeight - (mobile && key === 'event' ? 10 : 65)) return;
+  bubble.replaceChildren();
+  const heading = document.createElement('strong'); heading.textContent = title;
+  const detail = document.createElement('small'); detail.textContent = copy;
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'dismiss-hint'; close.textContent = '×'; close.setAttribute('aria-label','Dismiss hint');
+  close.onclick = () => { dismissedHints.add(key); positionHint(); };
+  bubble.append(heading, detail, close);
+  if (key === 'person') {
+    const next = document.createElement('button'); next.type = 'button'; next.className = 'next-hint'; next.textContent = 'And life events? →';
+    next.onclick = () => { idleHint = 'event'; positionHint(); }; bubble.append(next);
+  }
+  bubble.hidden = false;
+  const above = mobile && key === 'event';
+  bubble.classList.toggle('above', above);
+  const rightEdge = ['person','event','bend','event-edit'].includes(key) && !mobile ? bounds.right : innerWidth;
+  const left = Math.max(12, Math.min(rightEdge - bubble.offsetWidth - 12, target.x - 30));
+  bubble.style.left = left + 'px'; bubble.style.top = (above ? target.y - bubble.offsetHeight - 12 : target.y + 12) + 'px';
+  bubble.style.setProperty('--tip', Math.max(12, Math.min(bubble.offsetWidth - 24, target.x - left - 6)) + 'px');
+  if (bubble.getBoundingClientRect().bottom > innerHeight - (mobile && !above ? 60 : 10)) bubble.hidden = true;
+}
+$('show-hints').addEventListener('click', () => { dismissedHints.clear(); idleHint = 'person'; positionHint(); });
+window.addEventListener('scroll', positionHint, {passive:true,capture:true});
+window.addEventListener('resize', positionHint);
+new MutationObserver(positionHint).observe($('person-dialog'), {attributes:true,attributeFilter:['open']});
+new MutationObserver(positionHint).observe($('event-dialog'), {attributes:true,attributeFilter:['open']});
+
 const observer = new ResizeObserver(() => render());
 observer.observe(svg);
 
