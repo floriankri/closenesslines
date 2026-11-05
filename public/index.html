@@ -72,7 +72,7 @@
 <noscript><p>Enable JavaScript to display the timeline.</p></noscript>
 <footer>
 <div class="closing" id="create-yours"><p>Create yours.</p><a href="creator.html" class="creator-link">Open the creator →</a></div>
-<p class="credit">An imagined life. Ages and closeness are illustrative. Inspired by <a href="https://www.oliviaderecat.com/shop/p/closeness-lines-print"><cite>Closeness Lines Over Time</cite></a> by Olivia de Recat.</p>
+<p class="credit">Inspired by <a href="https://www.oliviaderecat.com/shop/p/closeness-lines-print"><cite>Closeness Lines Over Time</cite></a> by Olivia de Recat.</p>
 </footer>
 </main>
 <div class="line-tooltip" id="line-tooltip" role="tooltip" hidden></div>
@@ -142,7 +142,11 @@ function showTooltip(name, x, y) {
 }
 window.addEventListener('scroll', hideTooltip, {passive:true});
 document.addEventListener('keydown', event => { if (event.key === 'Escape') hideTooltip(); });
-document.addEventListener('pointerdown', event => { if (!event.target.closest('.hit')) hideTooltip(); });
+document.addEventListener('pointerdown', event => {
+  if (event.target.closest('.hit')) return;
+  hideTooltip();
+  if (selected !== null && !event.target.closest('.guide select')) choose(null);
+});
 
 for (const [age, title, story] of chapters) {
   const section = document.createElement('section');

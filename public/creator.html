@@ -68,6 +68,7 @@ svg{position:relative;z-index:1;overflow:visible;display:block;width:100%;height
 .handle .knob{fill:var(--paper);stroke:var(--line);stroke-width:1.8}
 .handle .knob.terminal{stroke:var(--accent)}
 .dragging .hit,.dragging .handle{cursor:grabbing}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .hint{position:fixed;z-index:25;width:230px;max-width:calc(100vw - 24px);padding:12px 30px 12px 14px;border:1px solid var(--rule);border-radius:8px;background:var(--paper);box-shadow:0 4px 18px #24241f20}
 .hint::before{content:"";position:absolute;left:var(--tip,24px);top:-7px;width:12px;height:12px;background:var(--paper);border-left:1px solid var(--rule);border-top:1px solid var(--rule);transform:rotate(45deg)}
 .hint.above::before{top:auto;bottom:-7px;transform:rotate(225deg)}
@@ -201,13 +202,7 @@ dialog .fields{justify-content:end;padding-top:4px}
     <ul id="relationships"></ul>
     <div class="section-heading"><h2>Life events</h2><button type="button" id="add-event">+ Add event</button></div>
     <p class="fine" id="empty-events">Moves, school, work and other turning points.</p><ul id="events-list"></ul>
-    <details class="instructions">
-      <summary>How to draw</summary><button type="button" id="show-hints">Show hints</button>
-      <p id="plot-help">Click blank graph space where a relationship began. On desktop, click beside the ages to add a life event. The Add buttons are an alternative, and work with a keyboard too. Drag its line to add a point. Drag a point to move it, or tap an inside point to remove it.</p>
-      <p>Drag the end earlier or toward either outer edge to fade it. Choose <em>Death</em> to end it with a red ring. A line can move to either side; only its distance from you matters.</p>
-      <p>With a point focused, use the arrow keys to move it or Delete to remove an inside point.</p>
-      <p>Add a birth month for a more precise position of Now.</p>
-    </details>
+    <button type="button" id="show-hints">Show hints</button><p id="plot-help" class="sr-only">Click empty graph space to add a person. Drag lines to shape relationships.</p>
     </div>
   </aside>
 </div>
@@ -800,62 +795,65 @@ function render() {
   requestAnimationFrame(positionHint);
 }
 // Hints describe the gesture at its target, without changing the editing flow.
-const dismissedHints = new Set();
-let idleHint = 'person';
+const hintSteps = ['birth', 'person', 'bend', 'event', 'event-move', 'ending', 'keyboard'];
+const hintsKey = 'closeness-creator-hints-v1';
+let hintIndex = 0;
+let hintClickSuppressedUntil = 0;
+try { const saved = Number(localStorage.getItem(hintsKey)); if (Number.isInteger(saved) && saved >= 0) hintIndex = Math.min(saved, hintSteps.length); } catch {}
+function setHint(index) {
+  hintIndex = Math.min(index, hintSteps.length);
+  try { localStorage.setItem(hintsKey, String(hintIndex)); } catch {}
+}
+function advanceHint() { setHint(hintIndex + 1); positionHint(); }
 function positionHint() {
   const bubble = $('hint');
   bubble.hidden = true;
-  if (editUnavailable || saving || document.querySelector('dialog[open]') || drag || eventDrag) return;
+  if (hintIndex >= hintSteps.length || editUnavailable || saving || document.querySelector('dialog[open]') || drag || eventDrag) return;
   const mobile = matchMedia('(max-width:680px)').matches;
   const bounds = svg.getBoundingClientRect();
-  let key, title, copy, target;
+  const key = hintSteps[hintIndex];
+  let title, copy, target;
   const point = (x, y) => ({x, y});
   const under = node => { const r = node.getBoundingClientRect(); return point(r.left + r.width / 2, r.bottom); };
-  if (data.birthYear === null) {
-    key = 'birth'; target = under($('birth'));
-    title = 'Start here'; copy = 'Enter your birth year. The month is optional.';
-  } else if (editingEvent) {
-    key = 'event-edit';
-    const marker = svg.querySelector(`[data-event="${editingEvent.id}"]`);
-    if (!marker) return;
-    const r = marker.getBoundingClientRect(); target = point(bounds.left + 70, r.bottom);
-    title = 'Move this moment'; copy = 'Drag its label or dotted line up or down. Click it to edit the details.';
-  } else if (activeTrack() && !dismissedHints.has('bend')) {
-    key = 'bend';
-    const r = svg.querySelector('.handle')?.getBoundingClientRect();
-    if (!r) return;
-    target = point(r.left + r.width / 2, r.bottom);
-    title = 'Shape the relationship'; copy = 'Drag the line to add a bend. Closer to the centre means closer to you. Tap an inside point to remove it.';
-  } else if (placementMode) {
-    key = 'place-' + placementMode;
-    target = point(bounds.left + bounds.width * .6, bounds.top + 80);
-    title = 'Choose the starting moment'; copy = placementMode === 'event' ? 'Click at the age this event happened.' : 'Click at the age you met, nearer the centre for a closer relationship.';
-  } else if (idleHint === 'event') {
-    key = 'event';
+  if (key === 'birth') {
+    target = under($('birth'));
+    title = 'Start here'; copy = 'Add your birth year. An optional month makes ‘Now’ more precise.';
+  } else if (key === 'bend') {
+    const r = svg.querySelector('.handle, [data-track]')?.getBoundingClientRect();
+    target = r ? point(r.left + r.width / 2, Math.max(bounds.top + 80, r.top + 30)) : point(bounds.left + bounds.width / 2, bounds.top + 80);
+    title = 'Shape a relationship'; copy = 'Drag to bend a line or move a point. Tap an inside point to remove it.';
+  } else if (key === 'event') {
     if (mobile) {
       target = under(panelOpen ? $('add-event') : $('panel-toggle'));
       target.y = (panelOpen ? $('add-event') : $('panel-toggle')).getBoundingClientRect().top;
-      title = 'Add a turning point'; copy = 'Open People & life events, then Add event. Choose its moment on the graph.';
+      title = 'Add a turning point'; copy = 'Open the bottom panel → Add event. Tap when it happened.';
     } else {
       const r = $('event-gutter').getBoundingClientRect();
       target = point(r.left + r.width / 2, bounds.top + 100);
-      title = 'Life events go here'; copy = 'Click in this margin beside an age to add a move, school or new job. Drag the dotted line to move it later.';
+      title = 'Life events go here'; copy = 'Click beside an age to add a move, school or job.';
     }
+  } else if (key === 'event-move') {
+    target = point(bounds.left + 70, Math.max(80, bounds.top + 100));
+    title = 'Move a life event'; copy = 'Drag its label or dotted line. Click it to edit.';
+  } else if (key === 'ending') {
+    target = point(bounds.left + bounds.width * .7, Math.max(80, bounds.top + 100));
+    title = 'End a relationship'; copy = 'Drag its end earlier or outward to fade. Select Death for a red ring.';
+  } else if (key === 'keyboard') {
+    target = point(bounds.left + bounds.width / 2, Math.max(80, bounds.top + 100));
+    title = 'Fine-tune a point'; copy = 'Focus a point: arrow keys move it; Delete removes an inside point. Undo reverses edits.';
   } else {
-    key = 'person'; target = point(bounds.left + bounds.width * .68, bounds.top + 90);
-    title = 'Click here to add someone'; copy = 'Any empty space works. Up or down sets when you met; distance from the centre sets how close you were.';
+    target = point(bounds.left + bounds.width * .68, bounds.top + 90);
+    title = 'Click here to add someone'; copy = 'Click empty space: down means later, nearer the centre means closer. Either side works.';
   }
-  if (dismissedHints.has(key) || target.y < 12 || target.y > innerHeight - (mobile && key === 'event' ? 10 : 65)) return;
+  if (target.y < 12 || target.y > innerHeight - (mobile && key === 'event' ? 10 : 65)) return;
   bubble.replaceChildren();
   const heading = document.createElement('strong'); heading.textContent = title;
   const detail = document.createElement('small'); detail.textContent = copy;
   const close = document.createElement('button'); close.type = 'button'; close.className = 'dismiss-hint'; close.textContent = '×'; close.setAttribute('aria-label','Dismiss hint');
-  close.onclick = () => { dismissedHints.add(key); positionHint(); };
+  close.onclick = () => { setHint(hintSteps.length); positionHint(); };
   bubble.append(heading, detail, close);
-  if (key === 'person') {
-    const next = document.createElement('button'); next.type = 'button'; next.className = 'next-hint'; next.textContent = 'And life events? →';
-    next.onclick = () => { idleHint = 'event'; positionHint(); }; bubble.append(next);
-  }
+  const next = document.createElement('button'); next.type = 'button'; next.className = 'next-hint'; next.textContent = hintIndex === hintSteps.length - 1 ? 'Got it' : 'Next →';
+  next.onclick = advanceHint; bubble.append(next);
   bubble.hidden = false;
   const above = mobile && key === 'event';
   bubble.classList.toggle('above', above);
@@ -865,12 +863,19 @@ function positionHint() {
   bubble.style.setProperty('--tip', Math.max(12, Math.min(bubble.offsetWidth - 24, target.x - left - 6)) + 'px');
   if (bubble.getBoundingClientRect().bottom > innerHeight - (mobile && !above ? 60 : 10)) bubble.hidden = true;
 }
-$('show-hints').addEventListener('click', () => { dismissedHints.clear(); idleHint = 'person'; positionHint(); });
+$('show-hints').addEventListener('click', () => { setHint(0); $('birth').scrollIntoView({block:'center',behavior:'smooth'}); positionHint(); });
+document.addEventListener('click', event => {
+  if (performance.now() >= hintClickSuppressedUntil && !event.target.closest('#hint, #show-hints, dialog') && !$('hint').hidden) advanceHint();
+}, true);
 window.addEventListener('scroll', positionHint, {passive:true,capture:true});
 window.addEventListener('resize', positionHint);
 new MutationObserver(positionHint).observe($('person-dialog'), {attributes:true,attributeFilter:['open']});
 new MutationObserver(positionHint).observe($('event-dialog'), {attributes:true,attributeFilter:['open']});
 
+document.addEventListener('click', event => {
+  if (!selected || event.target.closest('#plot, .sidebar, dialog, #hint, .tools')) return;
+  selected = null; render();
+}, true);
 const observer = new ResizeObserver(() => render());
 observer.observe(svg);
 
@@ -970,12 +975,14 @@ function finish(event, cancelled) {
     const points = gesture.track.points;
     if (!gesture.moved && gesture.index > 0 && gesture.index < points.length - 1) points.splice(gesture.index, 1);
     if (JSON.stringify(data) !== JSON.stringify(gesture.before)) {
-      dismissedHints.add('bend'); idleHint = 'event';
+      if (hintSteps[hintIndex] === 'bend') { setHint(hintIndex + 1); hintClickSuppressedUntil = performance.now() + 200; }
       remember(gesture.before, gesture.selection);
       commit();
     } else render();
   } else if (!cancelled && !gesture.moved) {
-    if (data.birthYear === null) {
+    if (gesture.selection && !placementMode) {
+      selected = null; editingEvent = null; render();
+    } else if (data.birthYear === null) {
       $('birth').focus();
       status('Choose a birth year to start drawing.');
     } else if (placementMode === 'event') {
@@ -1036,7 +1043,7 @@ svg.addEventListener('keydown', event => {
     const delta = event.shiftKey ? 5 : 1;
     movePoint(track, index, age + direction[0] * delta, distance + direction[1] * delta * .025, track.ending);
     if (JSON.stringify(data) !== JSON.stringify(snapshot)) {
-      dismissedHints.add('bend'); idleHint = 'event';
+      if (hintSteps[hintIndex] === 'bend') setHint(hintIndex + 1);
       remember(snapshot);
       commit();
       svg.querySelector(`[data-point="${index}"]`)?.focus();
@@ -1045,7 +1052,7 @@ svg.addEventListener('keydown', event => {
     event.preventDefault();
     remember();
     points.splice(index, 1);
-    dismissedHints.add('bend'); idleHint = 'event';
+    if (hintSteps[hintIndex] === 'bend') setHint(hintIndex + 1);
     commit();
     svg.querySelector(`[data-point="${index}"]`)?.focus();
   }
@@ -1117,6 +1124,7 @@ $('panel-toggle').addEventListener('click',()=> { if(placementMode) return; pane
 $('event-delete').addEventListener('click',()=> {
   if (!editingEvent) return;
   remember(); data.events=data.events.filter(item=>item.id!==editingEvent.id);
+  if (!editingEvent && hintSteps[hintIndex] === 'event') setHint(hintIndex + 1);
   $('event-dialog').close();editingEvent=null;commit('Life event removed.');
 });
 $('event-form').addEventListener('submit', event=> {
@@ -1127,6 +1135,7 @@ $('event-form').addEventListener('submit', event=> {
   remember();
   const item={id:editingEvent?.id??crypto.randomUUID(),age,type:$('event-type').value,label:$('event-label').value.trim()};
   data.events=data.events.filter(existing=>existing.id!==item.id).concat(item).sort((a,b)=>a.age-b.age);
+  if (!editingEvent && hintSteps[hintIndex] === 'event') setHint(hintIndex + 1);
   $('event-dialog').close();editingEvent=null;commit('Life event saved. Drag its label or dotted line to move it; click to edit.');
 });
 $('cancel').addEventListener('click', () => $('person-dialog').close());
