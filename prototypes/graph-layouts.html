@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Graph layouts · Closeness Lines</title><link rel="icon" href="../favicon.svg"><link rel="stylesheet" href="../site.css"><link rel="stylesheet" href="graph-layouts.css"></head>
+<body><main>
+<header class="site-masthead"><a class="site-brand" href="../index.html">Closeness Lines</a><a href="../creator.html">Back to creator</a></header>
+<h1>Three ways to trace closeness.</h1>
+<p class="intro">The same people, ages and closeness in each view. Hover or tap a line to follow it.</p>
+<nav class="variants" aria-label="Graph layout"><button data-view="right" aria-pressed="true">1 · Farther right</button><button data-view="down" aria-pressed="false">2 · Farther down</button><button data-view="up" aria-pressed="false">3 · Farther up</button></nav>
+<div class="controls"><label>People <select id="filter"><option value="all">Everyone</option><option value="family">Family</option><option value="friends">Friends</option><option value="partner">Romance</option><option value="work">Work</option><option value="pet">Pets</option></select></label><label>Time scale <input id="zoom" type="range" min="1" max="2" step="0.25" value="1"><output id="zoom-value">1×</output></label><button id="clear" disabled>Clear selection</button></div>
+<div class="view-heading"><h2 id="view-title">Time ↓ · Farther →</h2><p id="selection" role="status">All relationships</p></div>
+<div class="legend"><span style="--line:#4f6e85">Family</span><span style="--line:#3e725f">Friends</span><span style="--line:#9c4c59">Romance</span><span style="--line:#846629">Work</span><span style="--line:#765f8d">Pets</span><span class="death">○ Death</span></div>
+<div class="canvas" tabindex="0" aria-label="Scrollable timeline"><svg id="graph" role="group" aria-label="Relationship timeline"></svg></div>
+<p class="note" id="scroll-note">Scroll down through time. Distance from the person means farther apart.</p>
+</main><div id="tooltip" role="tooltip" hidden></div><script src="graph-layouts.js"></script></body></html>

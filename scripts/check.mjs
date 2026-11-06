@@ -14,5 +14,5 @@ async function check(directory) {
     }
   }
 }
-for (const dir of ['public', 'server', 'scripts', 'tests', 'supabase/functions']) await check(dir);
+for (const dir of ['public', 'prototypes', 'server', 'scripts', 'tests', 'supabase/functions']) await check(dir);
 console.log('JavaScript and inline scripts passed syntax checks.');

@@ -9,6 +9,12 @@ import { fileURLToPath } from 'node:url';
 import { createSharingHandler, uuidPattern } from '../supabase/functions/_shared/sharing-core.mjs';
 
 const siteDir = fileURLToPath(new URL('../public/', import.meta.url));
+const prototypeDir = fileURLToPath(new URL('../prototypes/', import.meta.url));
+const prototypeFiles = new Map([
+  ['prototypes/graph-layouts.html', 'text/html; charset=utf-8'],
+  ['prototypes/graph-layouts.css', 'text/css; charset=utf-8'],
+  ['prototypes/graph-layouts.js', 'text/javascript; charset=utf-8']
+]);
 const staticFiles = new Map([
   ['index.html', 'text/html; charset=utf-8'],
   ['creator.html', 'text/html; charset=utf-8'],
@@ -163,18 +169,20 @@ async function serve(request, response, server, api, backend) {
   let status = 200;
   let filename = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
   if (url.pathname.startsWith('/t/') && uuidPattern.test(url.pathname.slice(3))) filename = 'timeline.html';
-  if (!staticFiles.has(filename) || !['GET', 'HEAD'].includes(request.method)) {
+  let prototype = prototypeFiles.has(filename);
+  if ((!staticFiles.has(filename) && !prototype) || !['GET', 'HEAD'].includes(request.method)) {
     filename = '404.html';
+    prototype = false;
     status = 404;
   }
   const body = filename === 'config.js' && backend === 'local'
     ? Buffer.from("window.CLOSENESS_LINES_API_BASE = '/api';\n")
-    : await readFile(join(siteDir, filename)).catch(error => {
+    : await readFile(prototype ? join(prototypeDir, filename.slice('prototypes/'.length)) : join(siteDir, filename)).catch(error => {
     if (error.code !== 'ENOENT') throw error;
     return null;
   });
   response.writeHead(body ? status : 404, {
-    'Content-Type': body ? staticFiles.get(filename) : 'text/plain; charset=utf-8',
+    'Content-Type': body ? (prototypeFiles.get(filename) ?? staticFiles.get(filename)) : 'text/plain; charset=utf-8',
     'Cache-Control': 'no-store',
     'Referrer-Policy': 'no-referrer',
     'X-Content-Type-Options': 'nosniff',
