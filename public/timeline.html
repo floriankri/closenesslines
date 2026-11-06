@@ -44,7 +44,8 @@ svg{overflow:visible;display:block;width:100%;max-width:420px;height:840px}
 [hidden]{display:none!important}
 @media(max-width:680px){
   .wrap{width:calc(100% - 28px)}
-  .workspace{grid-template-columns:minmax(0,1fr);max-width:520px}
+  .workspace{grid-template-columns:minmax(0,1fr);max-width:420px}
+  .workspace>section{padding-left:0}
   .sidebar{border-left:0;border-top:1px solid var(--rule);padding-left:0}
   #lines{display:flex;flex-wrap:wrap}
   svg{height:840px}
@@ -126,7 +127,7 @@ async function openTimeline() {
     createdLabel.hidden = !createdText;
     let selected = null;
     const buttons = [];
-    const draw = () => ClosenessPlot.render(plot, { age: result.age, duration: result.duration ?? result.timeline?.duration ?? result.age, lines, events, ending, selected, tooltip });
+    const draw = () => ClosenessPlot.render(plot, { age: result.age, duration: result.duration ?? result.timeline?.duration ?? result.age, lines, events, ending, selected, tooltip, compactEvents: matchMedia('(max-width:680px)').matches });
     lines.forEach((line, index) => {
       const item = document.createElement('li');
       const button = document.createElement('button');
