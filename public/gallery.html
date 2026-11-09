@@ -27,6 +27,9 @@ button:hover:not(:disabled){border-color:var(--ink)}
 input{width:76px}
 #gallery-status{color:var(--muted);margin-top:16px;font:500 .86rem/1.5 var(--ui)}
 #gallery-status:empty{display:none}
+.time-scale{display:flex;align-items:center;gap:6px;font:600 .72rem/1.4 var(--ui)}
+.time-scale button{min-height:32px;padding:5px 9px;border:1px solid var(--rule);border-radius:2px;background:var(--paper);color:var(--muted);font:inherit;cursor:pointer}
+.time-scale button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
 #items{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),210px));justify-content:start;gap:14px;padding:0;margin:16px 0}
 .timeline-card{display:block;padding:7px;border:1px solid var(--rule);text-decoration:none}
 .timeline-card:hover{border-color:var(--ink)}
@@ -60,6 +63,7 @@ input{width:76px}
     <label><span class="label">Max age</span><input name="maxAge" type="number" min="0" max="200" step="1" inputmode="numeric"></label>
     <button type="submit">Filter</button>
   </form>
+  <div class="time-scale" role="group" aria-label="Timeline spacing"><span>Spacing</span><button type="button" data-time-scale="recent" aria-pressed="true">Recent years expanded</button><button type="button" data-time-scale="equal" aria-pressed="false">Equal years</button></div>
   <a class="label" href="./index.html">Example · The People We Keep</a>
 </div>
 <p id="gallery-status" role="status" aria-live="polite">Loading timelines…</p>
@@ -70,7 +74,7 @@ input{width:76px}
 </main>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
-<script src="./timeline-plot.js?v=41df615b30a0"></script>
+<script src="./timeline-plot.js?v=8b6da73a0c74"></script>
 <script>
 'use strict';
 const form = document.getElementById('age-filter');
@@ -90,6 +94,8 @@ document.addEventListener('keydown', event => {
 let filters = {};
 let nextCursor;
 let activeRequest;
+const scaleButtons = [...document.querySelectorAll('[data-time-scale]')];
+const cards = [];
 const formatCreated = value => {
   const date = typeof value === 'string' ? new Date(value) : null;
   return date && Number.isFinite(date.getTime())
@@ -104,7 +110,9 @@ function addCard(item) {
   link.className = 'timeline-card';
   link.href = ClosenessAPI.timelineURL(item.publicId);
   const plot = ClosenessPlot.node('svg', { 'aria-hidden': true, focusable: false });
-  ClosenessPlot.render(plot, { age: item.age, duration: item.duration, lines: ClosenessPlot.publicLines(item.lines), events: item.events ?? [], preview: true, tooltip });
+  const draw = () => ClosenessPlot.render(plot, { age: item.age, duration: item.duration, lines: ClosenessPlot.publicLines(item.lines), events: item.events ?? [], preview: true, tooltip });
+  draw();
+  cards.push(draw);
   const label = document.createElement('span');
   label.className = 'label';
   label.textContent = `Age ${item.age}`;
@@ -126,6 +134,14 @@ function addCard(item) {
   items.append(row);
 }
 
+const updateScale = mode => {
+  ClosenessPlot.setTimeScale(mode);
+  scaleButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.timeScale === ClosenessPlot.getTimeScale())));
+  cards.forEach(draw => draw());
+};
+scaleButtons.forEach(button => button.addEventListener('click', () => updateScale(button.dataset.timeScale)));
+scaleButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.timeScale === ClosenessPlot.getTimeScale())));
+
 async function loadGallery(append = false) {
   activeRequest?.abort();
   const controller = new AbortController();
@@ -133,6 +149,7 @@ async function loadGallery(append = false) {
   more.disabled = true;
   if (!append) {
     items.replaceChildren();
+    cards.length = 0;
     nextCursor = undefined;
     more.hidden = true;
   }

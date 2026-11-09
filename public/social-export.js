@@ -15,7 +15,6 @@ const ClosenessExport = (() => {
   const paper = '#f7f3e9';
   const red = '#a33d2d';
   const serif = 'Georgia, "Times New Roman", serif';
-
   const finite = value => Number.isFinite(Number(value));
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -36,9 +35,11 @@ const ClosenessExport = (() => {
     return {
       age: finite(model.age) ? Math.max(0, Number(model.age)) : 0,
       tagline: typeof model.tagline === 'string' ? model.tagline.trim() : '',
-      lines: lines.map(line => ({
+      timeScale: model.timeScale === 'equal' ? 'equal' : 'recent',
+      lines: lines.map((line, index) => ({
         label: typeof line?.label === 'string' ? line.label : '',
         color: /^#[0-9a-f]{6}$/i.test(line?.color) ? line.color : (palette[line?.category] || ink),
+        dash: Array.isArray(line?.dash) ? line.dash.filter(value=>Number.isFinite(value)&&value>0).slice(0,8) : [],
         ending: line?.ending === 'death' || line?.ending === 'fade' ? line.ending : 'ongoing',
         points: (Array.isArray(line?.points) ? line.points : [])
           .filter(point => Array.isArray(point) && finite(point[0]) && finite(point[1]))
@@ -118,7 +119,9 @@ const ClosenessExport = (() => {
     const bottom = scrolling ? height - 150 : height - Math.max(170, height * 0.145);
     const span = Math.max(1, bottom - top);
     const x = distance => axis + distance * (width / 2 - marginX);
-    const y = age => top + ((age - cameraTop) / windowAge) * span;
+    const ratio = age => model.timeScale === 'equal' ? age/maxAge : Math.pow(Math.max(0,age/maxAge),1.6);
+    const ratioTop=ratio(cameraTop),ratioSpan=ratio(cameraBottom)-ratioTop;
+    const y = age => top + ((ratio(age)-ratioTop) / ratioSpan) * span;
 
     ctx.fillStyle = ink;
     ctx.textAlign = 'center';
@@ -172,6 +175,7 @@ const ClosenessExport = (() => {
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = stroke;
+      ctx.setLineDash(line.dash.map(value=>value*1.6));
       ctx.stroke(new Path2D(path(segment, x, y)));
     };
 
@@ -192,6 +196,7 @@ const ClosenessExport = (() => {
         const gradient = ctx.createLinearGradient(x(start[1]), y(start[0]), x(end[1]), y(end[0]));
         gradient.addColorStop(0, line.color); gradient.addColorStop(1, `${line.color}00`);
         ctx.strokeStyle = gradient;
+        ctx.setLineDash(line.dash.map(value=>value*1.6));
         ctx.stroke(new Path2D(path([start, end], x, y)));
       } else drawSegment(line, line.points, 0, finalIndex);
       ctx.restore();
@@ -208,10 +213,11 @@ const ClosenessExport = (() => {
       }
     });
 
-    const labels = model.lines.map((line, index) => ({ line, index, point: line.points[0] })).filter(item => item.line.label && (!scrolling || (item.point[0] >= cameraTop && item.point[0] <= cameraBottom && item.point[0] <= revealAge)));
+    const labels = model.lines.map(line => ({ line, point: line.points[0] })).filter(item => item.line.label && (!scrolling || (item.point[0] >= cameraTop && item.point[0] <= cameraBottom && item.point[0] <= revealAge)));
     const labelOrder = [...labels].sort((a, b) => y(a.point[0]) - y(b.point[0]));
     const showLabels = labels.length <= 8 && labelOrder.every((item, index) => index === 0 || Math.abs(y(item.point[0]) - y(labelOrder[index - 1].point[0])) >= width * 0.032);
     ctx.font = `${Math.round(width * 0.019)}px ${serif}`;
+
     if (showLabels && !scrolling) {
       ctx.textBaseline = 'middle';
       labels.forEach(({ line, point }) => {
@@ -222,22 +228,29 @@ const ClosenessExport = (() => {
         ctx.fillText(label, x(point[1]) + (right ? 12 : -12), y(point[0]), Math.max(80, (right ? width-x(point[1]) : x(point[1]))-24));
       });
     } else if (!scrolling) {
+      const grouped=new Map();
+      for(const item of labels){
+        const key=JSON.stringify([item.line.label,item.line.color,item.line.dash]);
+        const entry=grouped.get(key);
+        if(entry)entry.count++; else grouped.set(key,{...item,count:1});
+      }
+      const legendLabels=[...grouped.values()];
       const legendY = bottom + 54;
       ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = muted;
       ctx.font = `${Math.round(width * 0.018)}px ${serif}`;
       const maxRows = Math.max(1, Math.floor((height - legendY - 58) / 22));
       const maxItems = maxRows * 2;
-      labels.slice(0, maxItems).forEach(({ line }, index) => {
+      legendLabels.slice(0, maxItems).forEach(({ line, count }, index) => {
         const col = index % 2; const row = Math.floor(index / 2);
         const lx = marginX + col * ((width - marginX * 2) / 2);
         const ly = legendY + row * 22;
-        ctx.fillStyle = line.color; ctx.beginPath(); ctx.arc(lx, ly - 1, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = ink; ctx.fillText(line.label, lx + 11, ly, (width-marginX*2)/2-24);
+        ctx.strokeStyle=line.color;ctx.lineWidth=3;ctx.setLineDash(line.dash.map(value=>value*1.6));ctx.beginPath();ctx.moveTo(lx-6,ly);ctx.lineTo(lx+22,ly);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle = ink; ctx.fillText(line.label+(count>1?` ×${count}`:''), lx + 32, ly, (width-marginX*2)/2-45);
       });
-      if (labels.length > maxItems) {
+      if (legendLabels.length > maxItems) {
         const col = maxItems % 2; const row = Math.floor(maxItems / 2);
         const lx = marginX + col * ((width - marginX * 2) / 2);
-        ctx.fillStyle = muted; ctx.fillText(`+${labels.length - maxItems} more`, lx + 11, legendY + row * 22);
+        ctx.fillStyle = muted; ctx.fillText(`+${legendLabels.length - maxItems} more`, lx + 11, legendY + row * 22);
       }
     }
 

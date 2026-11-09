@@ -33,3 +33,33 @@ test('simplified life event options retain API compatibility and accept old chan
   assert.equal(plot.canonicalEventType('Job change'), 'New job');
   assert.equal(plot.eventTypeLabel('Moved city'), 'Moved');
 });
+
+test('relationship styles follow types rather than custom names or array position',()=>{
+  const a={category:'friends',subtype:'University friend',name:'Dave'};
+  const b={...a,name:'Eva'};
+  assert.equal(plot.trackColor(a,[a,b]),plot.trackColor(b,[a,b]));
+  assert.deepEqual(Array.from(plot.trackDash(a)),[]);
+  assert.deepEqual(Array.from(plot.trackDash(a)),Array.from(plot.trackDash(b)));
+  assert.notEqual(plot.trackColor({...a,subtype:'Friend group'}),plot.trackColor(a));
+  const named=plot.namedLines({relationships:[{...a,points:[[18,.5]],ending:'ongoing'}]})[0];
+  const publicLine=plot.publicLines([{type:'University friend',color:'#3e725f',points:[[18,.5]],ending:'ongoing'}])[0];
+  assert.equal(named.color,publicLine.color);
+  assert.deepEqual(Array.from(named.dash),Array.from(publicLine.dash));
+});
+test('recent-years mapping is the default and pointer mapping is its exact inverse',()=>{
+  assert.equal(plot.getTimeScale(),'recent');
+  for(const mode of ['recent','equal'])for(const max of [6,27.167,88])for(const age of [0,.01,max/2,max,max+1,-1]){
+    assert.ok(Math.abs(plot.ratioAge(plot.ageRatio(age,max,mode),max,mode)-age)<1e-9);
+  }
+  assert.ok(plot.ageRatio(10,80,'recent')<plot.ageRatio(10,80,'equal'));
+  plot.setTimeScale('equal'); assert.equal(plot.getTimeScale(),'equal');
+  plot.setTimeScale('recent');
+});
+
+
+test('export patterns start solid and change only for a new role within a category',()=>{
+  const items=[{category:'friends',subtype:'Childhood friend',name:'A'},{category:'friends',subtype:'Childhood friend',name:'B'},{category:'friends',subtype:'University friend',name:'C'},{category:'friends',subtype:'University friend',name:'D'},{category:'family',subtype:'Parent'}];
+  const patterns=Array.from(plot.exportDashes(items),dash=>Array.from(dash));
+  assert.deepEqual(patterns,[[],[],[2,4],[2,4],[]]);
+  for(const item of items)assert.deepEqual(Array.from(plot.trackDash(item)),[]);
+});

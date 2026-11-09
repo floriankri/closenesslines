@@ -8,7 +8,7 @@ function renderer(extra={}) {
 }
 function canvas() {
   const strokes=[];
-  const context=new Proxy({stroke(path){if(path)strokes.push({path:path.path,style:this.strokeStyle});},createLinearGradient(){return {gradient:true,addColorStop(){}};}},{get(object,key){return key in object?object[key]:()=>{};}});
+  const context=new Proxy({stroke(path){if(path)strokes.push({path:path.path,style:this.strokeStyle,dash:this.dash});},setLineDash(values){this.dash=Array.from(values);},createLinearGradient(){return {gradient:true,addColorStop(){}};}},{get(object,key){return key in object?object[key]:()=>{};}});
   return {width:0,height:0,getContext:()=>context,strokes};
 }
 test('export fade does not repaint its final segment with opaque color',()=>{
@@ -41,4 +41,18 @@ test('video camera starts at birth and follows time without scrolling past the e
   }
   assert.equal(exporter.cameraFor(88,1,false).cameraTop,0);
   assert.equal(exporter.cameraFor(88,1,false).windowAge,88);
+});
+
+
+test('image and scrolling export use the selected time expansion and supplied type pattern',()=>{
+  for(const scrolling of [false,true]){
+    const points=[[0,.2],[10,.4]],line={color:'#3e725f',dash:[2,4],points,ending:'ongoing'};
+    const recent=canvas(),equal=canvas();
+    renderer().render(recent,{age:40,timeScale:'recent',lines:[line]},{scrolling,progress:scrolling?.5:1});
+    renderer().render(equal,{age:40,timeScale:'equal',lines:[line]},{scrolling,progress:scrolling?.5:1});
+    const endY=target=>Number(target.strokes[0].path.match(/-?[0-9]+(?:\.[0-9]+)?/g).at(-1));
+    assert.ok(endY(recent)<endY(equal));
+    assert.equal(recent.strokes[0].style,'#3e725f');
+    assert.deepEqual(recent.strokes[0].dash,[3.2,6.4]);
+  }
 });

@@ -41,6 +41,7 @@ h2{font-size:1.65rem;font-weight:400;line-height:1.12;letter-spacing:-.03em;over
 .canvas-actions .placement-active{background:var(--accent);border-color:var(--accent);color:var(--paper)}
 .axis-key{position:sticky;top:0;z-index:2;background:var(--paper);display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px;border-bottom:1px solid var(--rule);padding:9px 8px;color:var(--muted)}
 .axis-key strong{background:var(--ink);color:var(--paper);padding:4px 8px;border-radius:2px}
+.time-scale-control{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.time-scale-control button{min-height:40px;padding:7px 10px;font:500 .78rem/1.3 var(--ui)}.time-scale-control button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .plot{position:relative;min-height:840px}
 .scale-control{display:none}
 @media(min-width:681px) and (pointer:fine){svg#plot{height:var(--plot-height,840px)}.scale-control{display:grid;grid-template-columns:auto minmax(80px,1fr) 2.5em;align-items:center;gap:14px;padding:14px 8px;border-top:1px solid var(--rule);font:500 .75rem/1.4 var(--ui);color:var(--muted)}.scale-control input{width:100%;accent-color:var(--accent);min-height:32px}.scale-control output{text-align:right}}
@@ -158,11 +159,7 @@ dialog .fields{justify-content:end;padding-top:4px}
     <label><span class="label">Birth year</span><input id="birth" type="number" inputmode="numeric" min="1900" step="1" placeholder="YYYY" required></label>
     <label><span class="label">Birth month · optional</span><select id="birth-month"><option value="">Not set</option><option value="1">January</option><option value="2">February</option><option value="3">March</option><option value="4">April</option><option value="5">May</option><option value="6">June</option><option value="7">July</option><option value="8">August</option><option value="9">September</option><option value="10">October</option><option value="11">November</option><option value="12">December</option></select></label>
   </div>
-  <div class="actions">
-    <button type="button" id="undo" disabled>Undo</button>
-    <button type="button" id="load">Import</button>
-    <input type="file" id="file" accept=".json,application/json" hidden>
-  </div>
+  <div class="time-scale-control" role="group" aria-label="Timeline age scale"><button type="button" data-time-scale="recent" aria-pressed="true">Recent years expanded</button><button type="button" data-time-scale="equal" aria-pressed="false">Equal years</button></div>
 </div>
 <p id="status" role="status" aria-live="polite"></p>
 <div class="hint" id="hint" aria-live="polite" hidden></div>
@@ -252,8 +249,8 @@ dialog .fields{justify-content:end;padding-top:4px}
 <noscript><p>Enable JavaScript to draw a timeline.</p></noscript>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
-<script src="./timeline-plot.js?v=41df615b30a0"></script>
-<script src="./social-export.js?v=e0bced999acb"></script>
+<script src="./timeline-plot.js?v=8b6da73a0c74"></script>
+<script src="./social-export.js?v=ead07a1ee0bc"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -445,7 +442,7 @@ try {
     status('Loading this editing link…');
   }
 } catch {
-  status('The saved draft could not be loaded. You can start a timeline or import a JSON copy.');
+  status('The saved draft could not be loaded. You can start a new timeline or use an editing link.');
 }
 function reviseTimeline(birthYear, birthMonth = data.birthMonth) {
   const next = clone(data);
@@ -523,6 +520,18 @@ $('timeline-height').addEventListener('input', event => {
   renderPlot();
   window.scrollBy(0, slider.getBoundingClientRect().top - before);
 });
+const timeScaleButtons = [...document.querySelectorAll('[data-time-scale]')];
+function renderTimeScaleControl() {
+  const mode = ClosenessPlot.getTimeScale();
+  for (const button of timeScaleButtons) button.setAttribute('aria-pressed', String(button.dataset.timeScale === mode));
+}
+for (const button of timeScaleButtons) button.addEventListener('click', () => {
+  const mode = button.dataset.timeScale;
+  if (mode === ClosenessPlot.getTimeScale()) return;
+  ClosenessPlot.setTimeScale(mode);
+  renderTimeScaleControl();
+  renderPlot();
+});
 
 function element(tag, attributes, value) {
   const node = document.createElementNS(ns, tag);
@@ -562,7 +571,7 @@ function renderPlot(restoreFocus) {
   const spread = Math.max(1, mid - 18);
   const max = horizon(data);
   const x = distance => mid + spread * distance;
-  const y = age => max ? top + (bottom - top) * age / max : top;
+  const y = age => max ? top + (bottom - top) * ClosenessPlot.ageRatio(age, max) : top;
   const ended = data.endMode === 'death';
   const nowAge = data.birthYear === null || ended ? null : max;
   const nowY = nowAge === null ? null : y(nowAge);
@@ -574,12 +583,13 @@ function renderPlot(restoreFocus) {
   fragment.append(defs);
   const eventRules = element('g', {'pointer-events':'none'});
   fragment.append(eventRules);
-  const step = [1, 2, 5, 10, 20].find(value => !max || (bottom - top) * value / max >= 32) ?? 20;
+  const step = [1,2,5,10,20].find(value=>!max || (bottom-top)*value/max>=32) ?? 20;
   const ticks = [0];
   const previousAge = nowAge > 1 ? (Number.isInteger(nowAge) ? nowAge - 1 : Math.floor(nowAge)) : null;
   for (let age = step; age < max; age += step) {
     if (endY - y(age) <= 21 || (nowY !== null && Math.abs(nowY - y(age)) <= 21)) continue;
     if (previousAge !== null && Math.abs(y(previousAge) - y(age)) <= 14) continue;
+    if(y(age)-y(ticks.at(-1))<28) continue;
     ticks.push(age);
   }
   if (previousAge !== null) ticks.push(previousAge);
@@ -592,6 +602,7 @@ function renderPlot(restoreFocus) {
       const age = round(year - data.birthYear - monthOffset);
       if (age < 0 || age > max || year % step !== 0) continue;
       if (max && endY - y(age) <= 21) continue;
+      if(calendarTicks.length && y(age)-y(calendarTicks.at(-1).age)<28) continue;
       calendarTicks.push({ year, age });
     }
   }
@@ -628,8 +639,8 @@ function renderPlot(restoreFocus) {
       const bend = (y1 - y0) / 3;
       path += ` C${x0},${y0 + bend} ${x1},${y1 - bend} ${x1},${y1}`;
     }
-    const group = element('g', { style: `--line:var(--${track.category})`, opacity: chosen && !isSelected ? .46 : 1 });
-    const line = element('path', { d: path, class: `thread${isSelected ? ' selected' : ''}` });
+    const group = element('g', { style: `--line:${ClosenessPlot.trackColor(track,data.relationships)}`, opacity: chosen && !isSelected ? .46 : 1 });
+    const line = element('path', { d: path, class: `thread${isSelected ? ' selected' : ''}`, 'stroke-dasharray':ClosenessPlot.trackDash(track).join(' ') });
     if (track.ending === 'fade' && points.length > 1) {
       const gradient = element('linearGradient', { id: `grad-${track.id}`, gradientUnits: 'userSpaceOnUse', x1: 0, x2: 0, y1: y(ClosenessPlot.fadeStartAge(track.points)), y2: endY });
       gradient.append(element('stop', { offset: 0, 'stop-color': 'white' }), element('stop', { offset: 1, 'stop-color': 'white', 'stop-opacity': 0 }));
@@ -688,7 +699,7 @@ function renderPlot(restoreFocus) {
     const handle = element('g', {
       class: 'handle', tabindex: 0, role: 'button',
       'aria-label': `${displayName(chosen)}, ${role.toLowerCase()}, ${ageText(age)}, distance ${distance}`,
-      'data-track': chosen.id, 'data-point': i, style: `--line:var(--${chosen.category})`
+      'data-track': chosen.id, 'data-point': i, style: `--line:${ClosenessPlot.trackColor(chosen,data.relationships)}`
     });
     handle.append(
       element('circle', { cx: x(distance), cy: y(age), r: 12, fill: 'transparent' }),
@@ -721,8 +732,8 @@ function renderPlot(restoreFocus) {
       if (['Enter',' '].includes(event.key)) {event.preventDefault();openEvent(item.age,item);}
       if (['ArrowUp','ArrowDown'].includes(event.key)) {
         event.preventDefault();
-        const delta = (event.shiftKey ? 10 : 1) * chart.max / (chart.bottom - chart.top);
-        const age = round(clamp(item.age + (event.key === 'ArrowUp' ? -delta : delta), 0, chart.max));
+        const pixels = event.shiftKey ? 10 : 1;
+        const age = round(clamp(ageForPixelDelta(item.age, event.key === 'ArrowUp' ? -pixels : pixels), 0, chart.max));
         if (age === item.age) return;
         remember(); item.age = age; data.events.sort((a,b)=>a.age-b.age); commit('Life event moved.');
         svg.querySelector(`[data-event="${item.id}"]`)?.focus();
@@ -736,13 +747,13 @@ function renderPlot(restoreFocus) {
 function render() {
   const track = activeTrack();
   const started = data.birthYear !== null;
+  renderTimeScaleControl();
   $('birth').value = data.birthYear ?? '';
   $('birth').disabled = editUnavailable;
   $('birth-month').value = data.birthMonth ?? '';
   $('birth-month').disabled = editUnavailable;
   if ($('tagline').value !== data.tagline) $('tagline').value = data.tagline;
   $('tagline').disabled = editUnavailable;
-  $('undo').disabled = !history.length;
   document.querySelector('.tools').inert = loadingEdit || saving;
   document.querySelector('.workspace').inert = editUnavailable || saving;
   $('add-person').textContent = placementMode === 'person' ? 'Cancel placement' : '+ Add person';
@@ -782,7 +793,9 @@ function render() {
     button.setAttribute('aria-pressed', String(person.id === selected));
     const swatch = document.createElement('span');
     swatch.className = 'swatch';
-    swatch.style.setProperty('--line', `var(--${person.category})`);
+    swatch.style.setProperty('--line', ClosenessPlot.trackColor(person,data.relationships));
+    const dash=ClosenessPlot.trackDash(person);
+    swatch.style.borderTopStyle=dash.length?(dash[0]<=2?'dotted':'dashed'):'solid';
     button.append(swatch, document.createTextNode(displayName(person)));
     button.addEventListener('click', () => {
       editingEvent = null; selected = selected === person.id ? null : person.id;
@@ -851,7 +864,7 @@ function positionHint() {
     title = 'End a relationship'; copy = 'Drag its end earlier or outward to fade. Select Death for a red ring.';
   } else if (key === 'keyboard') {
     target = point(bounds.left + bounds.width / 2, Math.max(80, bounds.top + 100));
-    title = 'Fine-tune a point'; copy = 'Focus a point: arrow keys move it; Delete removes an inside point. Undo reverses edits.';
+    title = 'Fine-tune a point'; copy = 'Focus a point: arrow keys move it; Delete removes an inside point. ⌘/Ctrl+Z reverses edits.';
   } else {
     target = point(bounds.left + bounds.width * .68, bounds.top + 90);
     title = 'Click here to add someone'; copy = 'Click empty space: down means later, nearer the centre means closer. Either side works.';
@@ -884,7 +897,7 @@ new MutationObserver(positionHint).observe($('person-dialog'), {attributes:true,
 new MutationObserver(positionHint).observe($('event-dialog'), {attributes:true,attributeFilter:['open']});
 
 document.addEventListener('click', event => {
-  if (!selected || event.target.closest('#plot, .sidebar, dialog, #hint, .tools')) return;
+  if (!selected || event.target.closest('#plot, .sidebar, dialog, #hint, .tools, .axis-key')) return;
   selected = null; render();
 }, true);
 const observer = new ResizeObserver(() => render());
@@ -893,12 +906,19 @@ observer.observe(svg);
 function locate(event, bounded = true) {
   const rect = svg.getBoundingClientRect();
   const pointerY = event.clientY - rect.top;
-  const age = (pointerY - chart.top) / (chart.bottom - chart.top) * chart.max;
+  const ratio = (pointerY - chart.top) / (chart.bottom - chart.top);
+  const age = chart.max ? ClosenessPlot.ratioAge(ratio, chart.max) : 0;
   const distance = (event.clientX - rect.left - chart.mid) / chart.spread;
   return bounded ? [round(clamp(age, 0, chart.max)), round(clamp(distance, -1, 1))] : [age, distance];
 }
+function ageForPixelDelta(age, pixels) {
+  if (!chart?.max || chart.bottom === chart.top) return age;
+  const ratio = ClosenessPlot.ageRatio(age, chart.max);
+  return ClosenessPlot.ratioAge(ratio + pixels / (chart.bottom - chart.top), chart.max);
+}
 function interpolatedDistance([startAge, startDistance], [endAge, endDistance], age) {
-  const progress = (age - startAge) / (endAge - startAge);
+  const start = ClosenessPlot.ageRatio(startAge,chart.max), end = ClosenessPlot.ageRatio(endAge,chart.max);
+  const progress = (ClosenessPlot.ageRatio(age,chart.max)-start)/(end-start);
   const smooth = progress * progress * (3 - 2 * progress);
   return round(startDistance + (endDistance - startDistance) * smooth);
 }
@@ -922,7 +942,7 @@ function movePoint(track, i, age, distance, originalEnding) {
   const max = last ? chart.max : round(points[i + 1][0] - gap);
   const wasOngoing = originalEnding === 'ongoing';
   if (last && wasOngoing && points.length > 1) {
-    const verticalTolerance = 4 * chart.max / (chart.bottom - chart.top);
+    const verticalTolerance = Math.abs(ageForPixelDelta(points.at(-1)[0], -4) - points.at(-1)[0]);
     track.ending = Math.abs(distance) >= .93 || age < max - verticalTolerance ? 'fade' : 'ongoing';
     if (track.ending === 'ongoing') age = max;
   } else if (first && last && wasOngoing) age = max;
@@ -962,11 +982,17 @@ svg.addEventListener('pointermove', event => {
       else drag.index = addPoint(drag.track, age);
     }
     if (drag.track && drag.index !== -1) {
-      drag.grab = drag.track.points[drag.index].map((value, i) => value - drag.origin[i]);
+      const point = drag.track.points[drag.index];
+      drag.grab = [
+        ClosenessPlot.ageRatio(point[0], chart.max) - ClosenessPlot.ageRatio(drag.origin[0], chart.max),
+        point[1] - drag.origin[1]
+      ];
     }
   }
   if (drag.track && drag.index !== -1) {
-    const [age, distance] = locate(event, false).map((value, i) => value + drag.grab[i]);
+    const [rawAge, rawDistance] = locate(event, false);
+    const age = chart.max ? ClosenessPlot.ratioAge(ClosenessPlot.ageRatio(rawAge, chart.max) + drag.grab[0], chart.max) : rawAge;
+    const distance = rawDistance + drag.grab[1];
     movePoint(drag.track, drag.index, age, distance, drag.ending);
     renderPlot();
   }
@@ -1016,7 +1042,8 @@ svg.addEventListener('pointermove', event => {
   const delta = event.clientY - eventDrag.startY;
   if (!eventDrag.moved && Math.abs(delta) < 5) return;
   eventDrag.moved = true;
-  eventDrag.item.age = round(clamp(eventDrag.startAge + delta * chart.max / (chart.bottom - chart.top), 0, chart.max));
+  const ratio = ClosenessPlot.ageRatio(eventDrag.startAge,chart.max) + delta / (chart.bottom-chart.top);
+  eventDrag.item.age = round(clamp(ClosenessPlot.ratioAge(ratio, chart.max), 0, chart.max));
   renderPlot();
 });
 function finishEventDrag(event, cancelled) {
@@ -1109,7 +1136,8 @@ function openEvent(age, item = null) {
 }
 $('event-gutter').addEventListener('click', event => {
   const rect=svg.getBoundingClientRect();
-  const age=event.detail ? (event.clientY-rect.top-chart.top)/(chart.bottom-chart.top)*chart.max : 0;
+  const ratio = event.detail ? (event.clientY - rect.top - chart.top) / (chart.bottom - chart.top) : 0;
+  const age = chart.max ? ClosenessPlot.ratioAge(ratio, chart.max) : 0;
   openEvent(age);
 });
 function setPlacement(mode) {
@@ -1199,37 +1227,13 @@ $('remove').addEventListener('click', () => {
   remember();
   data.relationships = data.relationships.filter(track => track.id !== selected);
   selected = null;
-  commit('Relationship removed. Use Undo to restore it.');
+  commit('Relationship removed. Use Command/Ctrl+Z to restore it.');
 });
-$('undo').addEventListener('click', undo);
 document.addEventListener('keydown', event => {
   if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'z' &&
       !event.target.closest('input,textarea,select,dialog') && history.length) {
     event.preventDefault();
     undo();
-  }
-});
-$('load').addEventListener('click', () => $('file').click());
-$('file').addEventListener('change', async () => {
-  const file = $('file').files[0];
-  $('file').value = '';
-  if (!file) return;
-  try {
-    if (file.size > 2_000_000) throw new Error('Choose a timeline JSON file smaller than 2 MB.');
-    const next = validate(JSON.parse(await file.text()));
-    if (saving) throw new Error('Wait for the current save to finish before importing.');
-    remember();
-    history.at(-1).restoreRemote = remote;
-    remote = null;
-    editUnavailable = false;
-    linksVisible = null;
-    $('share-result').textContent = '';
-    syncEditingURL();
-    data = next;
-    selected = null;
-    commit('Timeline imported. Use Undo to return to your previous draft.');
-  } catch (error) {
-    status(error instanceof SyntaxError ? 'This file does not contain valid JSON.' : error.message, true);
   }
 });
 function syncEditingURL() {
@@ -1410,8 +1414,8 @@ const exportOptions = () => ({width:1080,height:1920});
 function exportModel() {
   const names = $('export-names').checked;
   const named = ClosenessPlot.namedLines(data);
-  return { age:horizon(data), tagline:data.tagline,
-    lines:data.relationships.map((track,index) => ({label:names ? named[index].label : relationshipType(track) || categories[track.category].fallback, color:named[index].color, ending:track.ending,points:clone(track.points)})),
+  return { age:horizon(data), timeScale:ClosenessPlot.getTimeScale(), tagline:data.tagline,
+    lines:data.relationships.map((track,index) => ({label:names ? named[index].label : relationshipType(track) || categories[track.category].fallback, color:named[index].color, dash:named[index].dash, ending:track.ending,points:clone(track.points)})),
     events:data.events.map(item=>({age:item.age,type:ClosenessPlot.eventTypeLabel(item.type),label:names?item.label:''})) };
 }
 function releaseExport() {
