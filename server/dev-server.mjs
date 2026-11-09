@@ -13,7 +13,10 @@ const prototypeDir = fileURLToPath(new URL('../prototypes/', import.meta.url));
 const prototypeFiles = new Map([
   ['prototypes/graph-layouts.html', 'text/html; charset=utf-8'],
   ['prototypes/graph-layouts.css', 'text/css; charset=utf-8'],
-  ['prototypes/graph-layouts.js', 'text/javascript; charset=utf-8']
+  ['prototypes/graph-layouts.js', 'text/javascript; charset=utf-8'],
+  ['prototypes/time-scale.html', 'text/html; charset=utf-8'],
+  ['prototypes/time-scale.css', 'text/css; charset=utf-8'],
+  ['prototypes/time-scale.js', 'text/javascript; charset=utf-8']
 ]);
 const staticFiles = new Map([
   ['index.html', 'text/html; charset=utf-8'],

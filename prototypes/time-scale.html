@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Time scale · Closeness Lines</title><link rel="icon" href="../favicon.svg"><link rel="stylesheet" href="../site.css"><link rel="stylesheet" href="time-scale.css"></head>
+<body><main>
+<header class="site-masthead"><a class="site-brand" href="../index.html">Closeness Lines</a><a href="../creator.html">Back to creator</a></header>
+<p class="eyebrow">A local visual experiment</p><h1>What if childhood took less space?</h1>
+<p class="intro">The same two-sided relationship graph, with only the vertical time scale changed. Try a mapping that gives later life more room without changing the order of anything.</p>
+<nav class="modes" aria-label="Time scale"><button type="button" data-mode="equal" aria-pressed="true">Equal years</button><button type="button" data-mode="childhood" aria-pressed="false">Childhood compressed</button><button type="button" data-mode="recent" aria-pressed="false">Recent years expanded</button></nav>
+<div class="controls"><label id="cutoff-control">Childhood ends at <select id="cutoff"><option value="10">age 10</option><option value="12" selected>age 12</option></select></label><label id="strength-control">Strength <input id="strength" type="range" min="0" max="1" step="0.05" value="0.5"><output id="strength-value">50%</output></label><button id="clear" type="button" disabled>Clear selection</button></div>
+<div class="status"><h2 id="mode-title">Equal years</h2><p id="mapping-note" role="status">One year always occupies the same vertical distance.</p></div>
+<div class="legend"><span style="--line:#4f6e85">Family</span><span style="--line:#3e725f">Friends</span><span style="--line:#9c4c59">Romance</span><span style="--line:#846629">Work</span><span style="--line:#765f8d">Pets</span><span class="death">○ Death</span></div>
+<div class="canvas" tabindex="0" aria-label="Two-sided relationship timeline"><svg id="graph" role="group" aria-label="Relationship timeline"></svg></div>
+<p class="note">The mapping changes spacing, not meaning: every curve keeps its age, side, distance and chronology. Compression is a visual emphasis, not a claim that childhood matters less.</p>
+</main><div id="tooltip" role="tooltip" hidden></div><script src="time-scale.js"></script></body></html>

@@ -11,3 +11,7 @@ available. This is a layout experiment, not an alternate editor.
 
 These files are served by explicit local development routes. They are excluded
 from the GitHub Pages artifact and do not read or write saved timelines.
+
+Time-spacing comparison: open `/prototypes/time-scale.html` to compare equal
+years, smoothly compressed childhood (age10/12 cutoff and strength), and
+recent-years emphasis. Design notes: [TIME-SCALE.md](TIME-SCALE.md).
