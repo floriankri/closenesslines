@@ -689,15 +689,16 @@ function renderPlot(restoreFocus) {
   });
   for (const item of data.events) {
     const eventY = y(item.age);
-    const marker = element('g', {class:'event-mark', 'data-event':item.id, tabindex:0, role:'button', 'aria-label':`Edit ${item.type}, ${ageText(item.age)}`});
+    const typeLabel = ClosenessPlot.eventTypeLabel(item.type);
+    const marker = element('g', {class:'event-mark', 'data-event':item.id, tabindex:0, role:'button', 'aria-label':`Edit ${typeLabel}, ${ageText(item.age)}`});
     eventRules.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
     marker.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'transparent','stroke-width':10,'pointer-events':'stroke'}), element('title', {}, 'Drag the label or dotted line to move; click to edit.'));
     const mobileEventLabels = window.matchMedia('(max-width:680px)').matches;
-    const chipWidth = Math.min(130, Math.max(70, item.type.length * 5.5 + 16), width - 80);
-    const chipText = item.type.length > 19 ? `${item.type.slice(0, 18)}…` : item.type;
+    const chipWidth = Math.min(130, Math.max(70, typeLabel.length * 5.5 + 16), width - 80);
+    const chipText = typeLabel.length > 19 ? `${typeLabel.slice(0, 18)}…` : typeLabel;
     marker.append(element('rect',{x:mobileEventLabels ? 64 : -100,y:mobileEventLabels ? eventY-32 : eventY-16,width:mobileEventLabels ? chipWidth : 94,height:mobileEventLabels ? 40 : 32,fill:'transparent'}));
     if (mobileEventLabels) marker.append(element('rect',{x:64,y:eventY-25,width:chipWidth,height:22,rx:3,fill:'var(--paper)',stroke:'var(--rule)','pointer-events':'none'}));
-    marker.append(element('text',{x:mobileEventLabels ? 71 : -12,y:mobileEventLabels ? eventY-10 : eventY+3,'text-anchor':mobileEventLabels ? 'start' : 'end',class:'event-text','pointer-events':'none'}, mobileEventLabels ? chipText : item.type));
+    marker.append(element('text',{x:mobileEventLabels ? 71 : -12,y:mobileEventLabels ? eventY-10 : eventY+3,'text-anchor':mobileEventLabels ? 'start' : 'end',class:'event-text','pointer-events':'none'}, mobileEventLabels ? chipText : typeLabel));
     marker.addEventListener('pointerdown', event => {
       if (placementMode) return;
       event.stopPropagation();
@@ -786,7 +787,7 @@ function render() {
   $('empty-events').hidden = !!data.events.length;
   for (const item of data.events) {
     const li = document.createElement('li'), button = document.createElement('button'), small = document.createElement('small');
-    button.type = 'button'; button.append(document.createTextNode(item.label ? `${item.type} · ${item.label}` : item.type));
+    button.type = 'button'; const typeLabel = ClosenessPlot.eventTypeLabel(item.type); button.append(document.createTextNode(item.label ? `${typeLabel} · ${item.label}` : typeLabel));
     small.textContent = ageText(item.age); button.append(small);
     button.addEventListener('click', () => openEvent(item.age,item)); li.append(button); eventList.append(li);
   }
@@ -1081,7 +1082,7 @@ function openPersonDialog(track, place) {
   $('person-dialog').showModal();
   $('category').focus();
 }
-for (const type of eventTypes) $('event-type').add(new Option(type,type));
+for (const [value, label] of ClosenessPlot.eventOptions) $('event-type').add(new Option(label,value));
 function openEvent(age, item = null) {
   if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
   placementMode = null;
@@ -1089,7 +1090,7 @@ function openEvent(age, item = null) {
   render();
   editingEvent = item;
   eventAge = item?.age ?? round(clamp(age,0,horizon(data)));
-  $('event-type').value = item?.type ?? eventTypes[0];
+  $('event-type').value = ClosenessPlot.canonicalEventType(item?.type ?? eventTypes[0]);
   $('event-label').value = item?.label ?? '';
   $('event-delete').hidden = !item;
   selected = null;
