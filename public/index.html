@@ -15,6 +15,9 @@
 .hero{min-height:530px;padding:88px 0 70px;display:grid;grid-template-columns:1fr .95fr;align-items:center;gap:clamp(20px,5vw,72px)}.eyebrow,.chapter-age{color:var(--accent)}h1,h2,p{margin:0}h1{font-size:clamp(3.4rem,8vw,7.3rem);line-height:.87;font-weight:400;letter-spacing:-.076em;margin:18px 0 25px}h1 em{font-weight:400}.intro{color:var(--muted);font-size:clamp(1.08rem,2vw,1.35rem);line-height:1.55;max-width:390px}.jump{display:inline-block;margin-top:24px;text-decoration:none;border-bottom:1px solid;padding-bottom:4px}.hero figure{margin:0}.hero svg{width:100%;display:block}.folio{color:var(--muted);text-align:center;margin-top:13px}
 .reader{border-block:1px solid var(--rule)}.reader summary{padding:13px 0;cursor:pointer;font:600 .78rem/1.5 var(--ui)}.reader p{max-width:660px;padding-bottom:15px;font-size:1.05rem;line-height:1.55;color:var(--muted)}.death-ring{display:inline-block;width:.67em;height:.67em;border:1px solid var(--accent);border-radius:50%;vertical-align:.04em}
 .guide select{display:block;max-width:100%;width:100%;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:2px;padding:5px;font:600 .76rem var(--ui)}.guide select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.time-scale{display:flex;align-items:center;gap:6px;margin-bottom:7px;font:600 .68rem/1.4 var(--ui);letter-spacing:0}
+.time-scale button{padding:4px 7px;border:1px solid var(--rule);border-radius:2px;background:var(--paper);color:var(--muted);font:inherit;cursor:pointer}
+.time-scale button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
 .guide{position:sticky;top:0;z-index:2;background:var(--paper);border-block:1px solid var(--ink);display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);color:var(--muted)}.guide>div{padding:10px 0}.guide>div:first-child{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;text-align:center;gap:4px}.guide strong{color:var(--paper);background:var(--ink);border-radius:2px;padding:4px 7px;white-space:nowrap}.direction{font-size:.62rem;letter-spacing:.035em}.legend{list-style:none;display:flex;gap:8px 17px;flex-wrap:wrap;margin:0;padding:12px 0;font:600 .76rem/1.4 var(--ui)}.legend li::before{content:"";display:inline-block;width:13px;border-top:2px solid var(--line);vertical-align:middle;margin-right:6px}.guide>div:last-child{border-left:1px solid var(--rule);padding-left:22px}.selection{display:block;margin-top:2px;letter-spacing:0;text-transform:none;color:var(--ink)}
 .atlas{position:relative}.atlas svg{position:absolute;inset:0 auto 0 0;width:62.96%;height:100%;overflow:hidden}.chapter{display:grid;grid-template-columns:1.7fr 1fr;position:relative;pointer-events:none}.chapter article{grid-column:2;border-left:1px solid var(--rule);padding:13px 0 0 22px;min-width:0}.chapter h2{font-weight:400;font-size:clamp(1.38rem,3.3vw,2.6rem);line-height:1.03;letter-spacing:-.045em;margin:4px 0 9px}.chapter p:last-child{color:var(--muted);font-size:clamp(.87rem,1.7vw,1.1rem);line-height:1.43;max-width:320px}.chapter-age{letter-spacing:.09em}
 .family{--line:#4f6e85}.friends{--line:#3e725f}.work{--line:#846629}.partner{--line:#9c4c59}.pet{--line:#765f8d}
@@ -64,7 +67,7 @@
 <ul class="legend" id="begin" aria-label="Relationship colors">
 <li class="family">Family</li><li class="friends">Friends</li><li class="partner">Romance</li><li class="work">Work</li><li class="pet">Dog</li>
 </ul>
-<div class="guide"><div><span class="direction">← Farther</span><strong>You ↓</strong><span class="direction">Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span>Acquaintance</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span>Acquaintance</span></div></div><div><select aria-label="Choose a relationship to trace"></select><span class="selection" aria-live="polite"></span></div></div>
+<div class="guide"><div><span class="direction">← Farther</span><strong>You ↓</strong><span class="direction">Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span>Acquaintance</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span>Acquaintance</span></div></div><div><div class="time-scale" role="group" aria-label="Timeline spacing"><span>Spacing</span><button type="button" data-time-scale="recent" aria-pressed="true">Recent years expanded</button><button type="button" data-time-scale="equal" aria-pressed="false">Equal years</button></div><select aria-label="Choose a relationship to trace"></select><span class="selection" aria-live="polite"></span></div></div>
 <div class="atlas">
 <svg id="lines" role="group" aria-labelledby="lines-title"><title id="lines-title">Closeness lines from birth to age 88</title></svg>
 <div id="chapters"></div>
@@ -76,7 +79,7 @@
 </footer>
 </main>
 <div class="line-tooltip" id="line-tooltip" role="tooltip" hidden></div>
-<script src="./timeline-plot.js?v=41df615b30a0"></script>
+<script src="./timeline-plot.js?v=8b6da73a0c74"></script>
 <script>
 const chapters = [
   [0, 'The first room', 'Mum and Dad are the whole world. At four, a friend down the street starts knocking.'],
@@ -124,10 +127,15 @@ const tracks = [
 const leftSide = new Set(['Mum', 'Childhood friend', 'School friends', 'University friend',
   'First fling', 'Longer relationship', 'First job colleagues', 'Later colleagues',
   'Older child', 'Dog', 'Friend from school pickup']);
+const groupNames = new Set(['School friends','First university friends','Second university friends','Other school parents']);
+const personStyles = tracks.map(([name,category])=>ClosenessPlot.relationshipStyle({category:({partner:'romance',pet:'pets'})[category]||category,type:groupNames.has(name)?'Friend group':name,group:groupNames.has(name)}));
+const personColors = personStyles.map(style=>style.color);
+
 
 const timeline = document.querySelector('#chapters');
 const svg = document.querySelector('#lines');
 const controls = document.querySelector('.guide select');
+const scaleButtons = [...document.querySelectorAll('[data-time-scale]')];
 const selection = document.querySelector('.selection');
 const ns = 'http://www.w3.org/2000/svg';
 let selected = null;
@@ -189,21 +197,24 @@ function render() {
   const width = svg.clientWidth;
   const sections = [...timeline.children];
   const compact = width < 300;
-  sections.forEach((section, i) => {
-    const years = (chapters[i + 1]?.[0] ?? 88) - chapters[i][0];
-    section.style.minHeight = `${Math.max(compact ? 196 : 168, years * 29)}px`;
+  // Keep chapter text readable; apply the same local age mapping to its curves.
+  const ages=[...chapters.map(([age])=>age),88];
+  sections.forEach((section,index)=>{
+    section.style.transform='';
+    section.style.minHeight='0px';
+    const weight=ClosenessPlot.ageRatio(ages[index+1],88)-ClosenessPlot.ageRatio(ages[index],88);
+    const article=section.querySelector('article');
+    section.style.minHeight=`${Math.max(compact?196:168,article.scrollHeight+28)+weight*1200}px`;
   });
-
-  const height = timeline.clientHeight;
-  const ages = [...chapters.map(([age]) => age), 88];
-  const yValues = [...sections.map(section => section.offsetTop + 20), height - 28];
-  const origin = width / 2;
-
-  function yFor(age) {
-    const i = ages.findIndex((start, index) => age >= start && age <= ages[index + 1]);
-    const progress = (age - ages[i]) / (ages[i + 1] - ages[i]);
-    return yValues[i] + (yValues[i + 1] - yValues[i]) * progress;
-  }
+  const height=timeline.clientHeight,origin=width/2;
+  const positions=[...sections.map(section=>section.offsetTop+20),height-28];
+  const yFor=age=>{
+    let index=ages.findIndex(value=>value>age)-1;
+    if(index<0)index=age>=88?ages.length-2:0;
+    const from=ClosenessPlot.ageRatio(ages[index],88),to=ClosenessPlot.ageRatio(ages[index+1],88);
+    const fraction=(ClosenessPlot.ageRatio(age,88)-from)/(to-from);
+    return positions[index]+fraction*(positions[index+1]-positions[index]);
+  };
 
   const spread = Math.min(origin - 8, 235);
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -244,8 +255,8 @@ function render() {
       const bend = (y1 - y0) / 3;
       path += `C${x0} ${y0 + bend} ${x1} ${y1 - bend} ${x1} ${y1}`;
     }
-    const line = shape('path', {d: path, class: `thread ${kind}`});
-    const start = shape('circle', {cx: firstX, cy: firstY, r: 2.1, class: `start ${kind}`});
+    const line = shape('path', {d: path, class: `thread ${kind}`,style:`--line:${personColors[index]}`,'stroke-dasharray':personStyles[index].dash.join(' ')});
+    const start = shape('circle', {cx: firstX, cy: firstY, r: 2.1, class: `start ${kind}`,style:`--line:${personColors[index]}`});
     if (fadeFrom !== undefined) {
       const gradientId = `fade-gradient-${index}`;
       const maskId = `fade-mask-${index}`;
@@ -298,6 +309,13 @@ function render() {
 }
 
 let lastWidth = 0;
+const updateScale = mode => {
+  ClosenessPlot.setTimeScale(mode);
+  scaleButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.timeScale === ClosenessPlot.getTimeScale())));
+  render();
+};
+scaleButtons.forEach(button => button.addEventListener('click', () => updateScale(button.dataset.timeScale)));
+scaleButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.timeScale === ClosenessPlot.getTimeScale())));
 new ResizeObserver(() => {
   if (svg.clientWidth === lastWidth) return;
   lastWidth = svg.clientWidth;

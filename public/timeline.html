@@ -41,6 +41,9 @@ svg{overflow:visible;display:block;width:100%;max-width:420px;height:840px}
 .line-tooltip{position:fixed;z-index:5;max-width:230px;padding:6px 9px;background:var(--paper);border:1px solid var(--rule);border-radius:2px;box-shadow:0 2px 8px #24241f12;pointer-events:none;font:600 .76rem/1.4 var(--ui)}
 .timeline-tagline{margin:0 0 18px;color:var(--muted);font:400 1.05rem/1.4 var(--serif);white-space:pre-line}
 .timeline-created{margin:0 0 18px;color:var(--muted);font:500 .68rem/1.4 var(--ui);letter-spacing:.08em;text-transform:uppercase}
+.time-scale{display:flex;align-items:center;gap:6px;margin:0 0 12px;font:600 .72rem/1.4 var(--ui)}
+.time-scale button{min-height:32px;padding:5px 9px;border:1px solid var(--rule);border-radius:2px;background:var(--paper);color:var(--muted);font:inherit;cursor:pointer}
+.time-scale button[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
 [hidden]{display:none!important}
 @media(max-width:680px){
   .wrap{width:calc(100% - 28px)}
@@ -68,6 +71,7 @@ svg{overflow:visible;display:block;width:100%;max-width:420px;height:840px}
   <section aria-label="Timeline">
     <p id="timeline-tagline" class="timeline-tagline" hidden></p>
     <p id="timeline-created" class="timeline-created" hidden></p>
+    <div class="time-scale" role="group" aria-label="Timeline spacing"><span>Spacing</span><button type="button" data-time-scale="recent" aria-pressed="true">Recent years expanded</button><button type="button" data-time-scale="equal" aria-pressed="false">Equal years</button></div>
     <div class="axis"><span>← Farther</span><strong>Person ↓</strong><span>Farther →</span><div class="closeness-scale" aria-label="Closeness: acquaintance, friend, close friend, closest to the centre"><span title="Acquaintance">Acquaint.</span><span>Friend</span><span>Close friend</span><span>Closest</span><span>Closest</span><span>Close friend</span><span>Friend</span><span title="Acquaintance">Acquaint.</span></div></div>
     <svg id="timeline-plot" role="img" aria-label="Closeness graph. Age increases from top to bottom."></svg>
     <div id="line-tooltip" class="line-tooltip" role="tooltip" hidden></div>
@@ -81,7 +85,7 @@ svg{overflow:visible;display:block;width:100%;max-width:420px;height:840px}
 </main>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
-<script src="./timeline-plot.js?v=41df615b30a0"></script>
+<script src="./timeline-plot.js?v=8b6da73a0c74"></script>
 <script>
 'use strict';
 
@@ -127,6 +131,14 @@ async function openTimeline() {
     createdLabel.hidden = !createdText;
     let selected = null;
     const buttons = [];
+    const scaleButtons = [...document.querySelectorAll('[data-time-scale]')];
+    const updateScale = mode => {
+      ClosenessPlot.setTimeScale(mode);
+      scaleButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.timeScale === ClosenessPlot.getTimeScale())));
+      draw();
+    };
+    scaleButtons.forEach(button => button.addEventListener('click', () => updateScale(button.dataset.timeScale)));
+    scaleButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.timeScale === ClosenessPlot.getTimeScale())));
     const draw = () => ClosenessPlot.render(plot, { age: result.age, duration: result.duration ?? result.timeline?.duration ?? result.age, lines, events, ending, selected, tooltip, compactEvents: matchMedia('(max-width:680px)').matches });
     lines.forEach((line, index) => {
       const item = document.createElement('li');
@@ -136,6 +148,7 @@ async function openTimeline() {
       const swatch = document.createElement('span');
       swatch.className = 'swatch';
       if (/^#[0-9a-f]{6}$/i.test(line.color)) swatch.style.color = line.color;
+      swatch.style.borderTopStyle='solid';
       button.append(swatch, document.createTextNode(line.label || 'Relationship'));
       button.addEventListener('click', () => {
         selected = selected === index ? null : index;

@@ -40,20 +40,74 @@ const ClosenessPlot = (() => {
     return hasLater ? 'Middle child' : 'Youngest child';
   }
 
+  // Patterns are an export-only aid. Within each category the first role is
+  // solid; additional roles get a pattern shared by everyone with that role.
+  const exportPatterns = [[],[2,4],[9,4],[8,3,2,3],[5,3],[10,3,2,3,2,3]];
+  function canonicalRole(type = '') {
+    if (/^(Older|Younger|Middle|Youngest) sibling$/.test(type)) return 'Sibling';
+    if (/^(Older|Younger|Oldest|Middle|Youngest) child$/.test(type)) return 'Child';
+    return type;
+  }
+  function relationshipStyle(item) {
+    const category = item.category || ((item.type || item.subtype)==='Friend group'?'friends':null) || Object.keys(categoryColors).find(key => categoryColors[key] === item.color);
+    const type = canonicalRole(item.type || item.subtype || '');
+    const group = category === 'friends' && (type === 'Friend group' || item.group);
+    return { color: group ? '#387f91' : categoryColors[category] || '#64605c', dash: [] };
+  }
+  function relationshipColors(items) { return items.map(item => relationshipStyle(item).color); }
+  function trackColor(track) { return relationshipStyle(track).color; }
+  function trackDash() { return []; }
+  function exportDashes(items) {
+    const categories = new Map();
+    return items.map(item=>{
+      const category=item.category || ((item.type || item.subtype)==='Friend group'?'friends':null) || Object.keys(categoryColors).find(key=>categoryColors[key]===item.color) || 'other';
+      const role=canonicalRole(item.type || item.subtype || category);
+      if(!categories.has(category))categories.set(category,new Map());
+      const roles=categories.get(category);
+      if(!roles.has(role))roles.set(role,roles.size);
+      const index=roles.get(role);
+      return exportPatterns[Math.min(index,exportPatterns.length-1)];
+    });
+  }
+
+  const timeScaleKey = 'closeness-lines.time-scale';
+  let memoryTimeScale;
+  function getTimeScale() {
+    if (memoryTimeScale) return memoryTimeScale;
+    try { return localStorage.getItem(timeScaleKey) === 'equal' ? 'equal' : 'recent'; } catch { return 'recent'; }
+  }
+  function setTimeScale(mode) {
+    if (!['recent','equal'].includes(mode)) return;
+    memoryTimeScale=mode;
+    try { localStorage.setItem(timeScaleKey, mode); } catch {}
+  }
+  function ageRatio(age, max, mode = getTimeScale()) {
+    if (!(max > 0)) return 0;
+    const ratio = age / max;
+    return mode === 'equal' ? ratio : Math.sign(ratio) * Math.abs(ratio) ** 1.6;
+  }
+  function ratioAge(ratio, max, mode = getTimeScale()) {
+    return mode === 'equal' ? ratio * max : Math.sign(ratio) * Math.abs(ratio) ** (1/1.6) * max;
+  }
+
   function namedLines(timeline) {
-    return timeline.relationships.map(track => ({
+    const colors = relationshipColors(timeline.relationships.map(track=>({category:track.category,type:track.subtype})));
+    const dashes=exportDashes(timeline.relationships);
+    return timeline.relationships.map((track,index) => ({
       label: (() => {
         const type = relationshipType(track, timeline.relationships) || categoryLabels[track.category];
         return track.name && track.name !== type ? `${type} · ${track.name}` : type;
       })(),
-      color: categoryColors[track.category],
+      color: colors[index],
+      dash: dashes[index],
       ending: track.ending,
       points: track.points
     }));
   }
 
   function publicLines(lines) {
-    return lines.map(({ type, color, ending, points }) => ({ label: type, color, ending, points }));
+    const colors = relationshipColors(lines),dashes=exportDashes(lines);
+    return lines.map(({ type, ending, points },index) => ({ label: type, color: colors[index], dash:dashes[index], ending, points }));
   }
 
   function node(tag, attributes = {}, value) {
@@ -111,7 +165,7 @@ const ClosenessPlot = (() => {
     const bottom = span ? height - (preview ? 13 : 31) : top;
     const spread = mid - (preview ? 12 : 18);
     const x = distance => mid + spread * distance;
-    const y = value => span ? top + (bottom - top) * value / span : top;
+    const y = value => span ? top + (bottom - top) * ageRatio(value, span) : top;
     const lineWidth = preview ? 1.4 : 2.1;
     const prefix = `plot-${++plotId}`;
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
@@ -151,7 +205,10 @@ const ClosenessPlot = (() => {
       }));
       const pixelsPerYear = span ? (bottom - top) / span : 0;
       const step = pixelsPerYear >= 32 ? 1 : pixelsPerYear >= 16 ? 2 : pixelsPerYear >= 8 ? 5 : pixelsPerYear >= 4 ? 10 : 20;
+      let previousTickY=top;
       for (let tick = step; tick < span && bottom - y(tick) > 20; tick += step) {
+        if(y(tick)-previousTickY<25)continue;
+        previousTickY=y(tick);
         group.append(horizontalRule(tick, rule));
         text.append(node('text', { x: 8, y: y(tick) - 6 }, `Age ${tick}`));
       }
@@ -222,7 +279,7 @@ const ClosenessPlot = (() => {
       const color = /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : ink;
       const emphasized = selected === index;
       const thread = node('g', { opacity: selected === null || emphasized ? 1 : .25 });
-      const curve = node('path', { d: pathFor(points), fill: 'none', stroke: color,
+      const curve = node('path', { d: pathFor(points), fill: 'none', stroke: color, 'stroke-dasharray':'',
         'stroke-width': lineWidth + (emphasized ? 1 : 0), 'stroke-linecap': 'round' });
       if (line.ending === 'fade' && points.length > 1) {
         const id = `${prefix}-fade-${index}`;
@@ -278,5 +335,5 @@ const ClosenessPlot = (() => {
     svg.replaceChildren(defs, group, hits, text, eventHits);
   }
 
-  return { eventOptions, canonicalEventType, eventTypeLabel, node, render, relationshipType, namedLines, publicLines, scalePositions, fadeStartAge };
+  return { exportDashes, getTimeScale, setTimeScale, ageRatio, ratioAge, relationshipStyle, trackDash, relationshipColors, trackColor, eventOptions, canonicalEventType, eventTypeLabel, node, render, relationshipType, namedLines, publicLines, scalePositions, fadeStartAge };
 })();
