@@ -103,6 +103,7 @@ dialog .fields{justify-content:end;padding-top:4px}
 #share{background:var(--accent);border-color:var(--accent);color:var(--paper)}
 .sharing p{margin:8px auto 0;max-width:660px}
 .sharing p:empty{display:none}
+#export-dialog{width:min(560px,calc(100vw - 24px));max-height:92dvh;overflow:auto}#export-dialog h2{margin-top:0}#export-close{float:right;margin-left:12px}#export-preview,#export-video{display:block;width:auto;max-width:100%;height:auto;max-height:44dvh;margin:16px auto;border:1px solid var(--rule)}#export-video{width:100%}.export-options{display:flex;gap:16px;align-items:end;flex-wrap:wrap}.export-names{display:flex;gap:8px;align-items:center;font:13px var(--ui)}.export-names input{width:auto;min-height:24px}#export-dialog .fields{flex-wrap:wrap;justify-content:center}
 .link-list{display:grid;gap:10px;max-width:660px;margin:16px auto 0}
 .link-list dt{margin-bottom:3px}
 .link-list dd{display:flex;align-items:center;justify-content:center;gap:10px;margin:0}
@@ -211,6 +212,7 @@ dialog .fields{justify-content:end;padding-top:4px}
   <div class="actions">
     <button type="button" class="primary" id="share" disabled>Publish &amp; share</button>
     <button type="button" id="editing-link" disabled>Save / editing link</button>
+    <button type="button" id="export" disabled>Export</button>
   </div>
   <p class="fine">Publish &amp; share creates a named link and an anonymous Gallery link. Timelines with at least two people appear in the Gallery. Relationship types stay visible publicly; anyone with the editing link can change this timeline.</p>
   <p class="fine" id="share-state"></p>
@@ -218,6 +220,14 @@ dialog .fields{justify-content:end;padding-top:4px}
   <dl id="timeline-links" class="link-list" hidden></dl>
 </section>
 </main>
+<dialog id="export-dialog" aria-labelledby="export-title">
+  <button type="button" id="export-close" class="editor-close">Close</button><h2 id="export-title">Export your timeline</h2>
+  <div class="export-options"><label><span class="label">Format</span><select id="export-format"><option value="1350">Portrait · 4:5</option><option value="1920">Story · 9:16</option></select></label><label class="export-names"><input type="checkbox" id="export-names"> Include names &amp; private labels</label></div>
+  <canvas id="export-preview" aria-label="Export preview"></canvas><video id="export-video" controls playsinline hidden aria-label="Export video preview"></video>
+  <p class="fine">Names and private labels are hidden by default. Your public tagline is included.</p>
+  <div class="fields"><button type="button" id="export-image">Image</button><button type="button" id="export-movie">Create video</button><button type="button" id="export-download" disabled>Download image</button><button type="button" id="export-share" hidden>Share</button></div>
+  <p class="fine" id="export-status" role="status" aria-live="polite"></p>
+</dialog>
 <dialog id="person-dialog" aria-labelledby="dialog-title">
   <p class="eyebrow" id="dialog-age"></p>
   <h2 id="dialog-title">Add a relationship</h2>
@@ -244,6 +254,7 @@ dialog .fields{justify-content:end;padding-top:4px}
 <script src="./config.js"></script>
 <script src="./api.js"></script>
 <script src="./timeline-plot.js"></script>
+<script src="./social-export.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -1239,7 +1250,7 @@ function hasUnsavedChanges() {
 
 function renderSharing() {
   const ready = !editUnavailable && !saving && data.birthYear !== null && data.relationships.length > 0;
-  $('share').disabled = $('editing-link').disabled = !ready;
+  $('share').disabled = $('editing-link').disabled = $('export').disabled = !ready;
   const state = $('share-state');
   state.textContent = '';
   if (hasUnsavedChanges()) {
@@ -1393,6 +1404,73 @@ async function loadEditingLink() {
   }
 }
 
+let exportBlob = null, exportURL = null, exportController = null, exportKind = 'image', exportRevision = 0;
+const exportOptions = () => ({width:1080,height:Number($('export-format').value)});
+function exportModel() {
+  const names = $('export-names').checked;
+  const named = ClosenessPlot.namedLines(data);
+  return { age:horizon(data), tagline:data.tagline,
+    lines:data.relationships.map((track,index) => ({label:names ? named[index].label : relationshipType(track) || categories[track.category].fallback, color:named[index].color, ending:track.ending,points:clone(track.points)})),
+    events:data.events.map(item=>({age:item.age,type:ClosenessPlot.eventTypeLabel(item.type),label:names?item.label:''})) };
+}
+function releaseExport() {
+  if (exportURL) URL.revokeObjectURL(exportURL);
+  exportURL = null; exportBlob = null;
+  $('export-video').pause(); $('export-video').removeAttribute('src'); $('export-video').load();
+  $('export-download').disabled = true; $('export-share').hidden = true;
+}
+function exportFile() {
+  const extension = exportKind === 'image' ? 'png' : exportBlob.type.includes('mp4') ? 'mp4' : 'webm';
+  return new File([exportBlob], `closeness-lines.${extension}`, {type:exportBlob.type});
+}
+function exportBusy(busy) {
+  for (const id of ['export-format','export-names','export-image','export-movie']) $(id).disabled = busy;
+  if (!busy && !(typeof MediaRecorder !== 'undefined' && HTMLCanvasElement.prototype.captureStream)) { $('export-movie').disabled=true; $('export-movie').title='Video export is unavailable in this browser.'; }
+}
+function readyExport(blob,kind) {
+  exportBlob=blob; exportKind=kind; exportURL=URL.createObjectURL(blob);
+  $('export-download').textContent=kind==='image'?'Download image':'Download video'; $('export-download').disabled=false;
+  try { $('export-share').hidden = !(navigator.canShare && navigator.canShare({files:[exportFile()]})); } catch { $('export-share').hidden=true; }
+}
+async function makeExportImage() {
+  const revision = ++exportRevision;
+  exportController?.abort(); releaseExport(); exportBusy(true);
+  $('export-preview').hidden=false; $('export-video').hidden=true;
+  $('export-status').textContent='Preparing image…';
+  try {
+    ClosenessExport.render($('export-preview'),exportModel(),exportOptions());
+    const blob=await new Promise(resolve=>$('export-preview').toBlob(resolve,'image/png'));
+    if (!blob) throw new Error('Could not create the image.');
+    if (!$('export-dialog').open || revision !== exportRevision) return;
+    readyExport(blob,'image'); $('export-status').textContent='Ready to download or share.';
+  } catch(error) { $('export-status').textContent=error.message; }
+  finally { exportBusy(false); }
+}
+$('export').addEventListener('click',()=>{$('export-dialog').showModal();makeExportImage();});
+$('export-image').addEventListener('click',makeExportImage);
+for (const id of ['export-format','export-names']) $(id).addEventListener('change',makeExportImage);
+$('export-movie').addEventListener('click',async()=>{
+  releaseExport(); exportBusy(true); exportController=new AbortController();
+  $('export-status').textContent='Creating video… Keep this tab open.';
+  try {
+    const blob=await ClosenessExport.record(exportModel(),{...exportOptions(),signal:exportController.signal,onProgress:progress=>{$('export-status').textContent=`Creating video… ${Math.round(progress*100)}%`;}});
+    if (!$('export-dialog').open) return;
+    readyExport(blob,'video'); $('export-preview').hidden=true; $('export-video').hidden=false; $('export-video').src=exportURL;
+    $('export-status').textContent=`Ready · ${blob.type.includes('mp4')?'MP4':'WebM'} video.`;
+  } catch(error) { if(error.name!=='AbortError') $('export-status').textContent=error.message; }
+  finally { exportBusy(false); exportController=null; }
+});
+$('export-download').addEventListener('click',()=>{
+  if(!exportBlob)return;
+  const link=document.createElement('a');link.href=exportURL;link.download=exportFile().name;link.click();
+});
+$('export-share').addEventListener('click',async()=>{
+  if(!exportBlob)return;
+  try {await navigator.share({files:[exportFile()],title:'Closeness Lines'});}
+  catch(error) {if(error.name!=='AbortError') $('export-status').textContent='Sharing is unavailable. Use Download instead.';}
+});
+$('export-close').addEventListener('click',()=>$('export-dialog').close());
+$('export-dialog').addEventListener('close',()=>{exportRevision++;exportController?.abort();releaseExport();});
 $('share').addEventListener('click', () => saveLink(true));
 $('editing-link').addEventListener('click', () => saveLink(false));
 $('tagline').addEventListener('input', event => {
