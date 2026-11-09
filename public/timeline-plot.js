@@ -7,6 +7,14 @@ const ClosenessPlot = (() => {
   };
   const categoryLabels = { family: 'Family member', friends: 'Friend', romance: 'Partner', work: 'Colleague', pets: 'Pet' };
   let plotId = 0;
+  // Keep API-compatible stored values while presenting a smaller event vocabulary.
+  const eventOptions = [
+    ['Moved city', 'Moved'], ['New school', 'School'], ['University', 'University'],
+    ['New job', 'Job'], ['Retirement', 'Retirement'], ['Other life event', 'Other']
+  ];
+  const canonicalEventType = type => ({ 'University change': 'University', 'Job change': 'New job' })[type] ?? type;
+  const eventTypeLabel = type => eventOptions.find(([value]) => value === canonicalEventType(type))?.[1] ?? type;
+
 
   function relationshipType(track, tracks) {
     const { category, subtype } = track;
@@ -157,15 +165,16 @@ const ClosenessPlot = (() => {
       const eventLine = node('line', { x1: 8, x2: preview ? width * .46 : width - 8, y1: eventY, y2: eventY,
         stroke: accent, 'stroke-width': preview ? 1 : 1.2, 'stroke-dasharray': '2 3', opacity: .72 });
       group.append(eventLine);
-      const eventLabel = [event.type, event.label].filter(Boolean).join(' · ');
+      const typeLabel = eventTypeLabel(event.type);
+      const eventLabel = [typeLabel, event.label].filter(Boolean).join(' · ');
       if (eventLabel) eventLine.append(node('title', {}, eventLabel));
       const compact = compactEvents && !preview;
       const chipX = 64;
-      const chipWidth = Math.min(130, Math.max(70, (event.type?.length || 0) * 5.5 + 16), width - chipX - 16);
-      const shortType = event.type?.length > 19 ? `${event.type.slice(0, 18)}…` : event.type;
+      const chipWidth = Math.min(130, Math.max(70, (typeLabel?.length || 0) * 5.5 + 16), width - chipX - 16);
+      const shortType = typeLabel?.length > 19 ? `${typeLabel.slice(0, 18)}…` : typeLabel;
       if (!preview && event.type) {
         if (compact) text.append(node('rect', { x: chipX, y: eventY - 25, width: chipWidth, height: 22, rx: 3, fill: paper, stroke: rule, 'stroke-width': 1, 'pointer-events': 'none' }));
-        text.append(node('text', { x: compact ? chipX + 7 : -12, y: compact ? eventY - 10 : eventY + 3, 'text-anchor': compact ? 'start' : 'end', 'font-size': compact ? 10 : 9, fill: accent, 'pointer-events': 'none' }, compact ? shortType : event.type));
+        text.append(node('text', { x: compact ? chipX + 7 : -12, y: compact ? eventY - 10 : eventY + 3, 'text-anchor': compact ? 'start' : 'end', 'font-size': compact ? 10 : 9, fill: accent, 'pointer-events': 'none' }, compact ? shortType : typeLabel));
       }
       if (!preview && eventLabel && tooltip) {
         const hit = node('rect', { x: compact ? chipX : -100, y: compact ? eventY - 32 : eventY - 16, width: compact ? chipWidth : 94, height: compact ? 40 : 32,
@@ -269,5 +278,5 @@ const ClosenessPlot = (() => {
     svg.replaceChildren(defs, group, hits, text, eventHits);
   }
 
-  return { node, render, relationshipType, namedLines, publicLines, scalePositions, fadeStartAge };
+  return { eventOptions, canonicalEventType, eventTypeLabel, node, render, relationshipType, namedLines, publicLines, scalePositions, fadeStartAge };
 })();

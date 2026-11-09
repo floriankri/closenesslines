@@ -103,6 +103,7 @@ dialog .fields{justify-content:end;padding-top:4px}
 #share{background:var(--accent);border-color:var(--accent);color:var(--paper)}
 .sharing p{margin:8px auto 0;max-width:660px}
 .sharing p:empty{display:none}
+#export-dialog{width:min(560px,calc(100vw - 24px));max-height:92dvh;overflow:auto}#export-dialog h2{margin-top:0}#export-dialog .link-list{margin:10px 0;gap:0}#export-dialog .link-list>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid var(--rule)}#export-dialog .link-list dd{margin:0}#export-dialog .link-list dt{letter-spacing:.03em}#export-close{float:right;margin-left:12px}#export-preview,#export-video{display:block;width:auto;max-width:100%;height:auto;max-height:28dvh;margin:12px auto;border:1px solid var(--rule)}#export-video{aspect-ratio:9/16}.export-options{display:flex;gap:16px;align-items:end;flex-wrap:wrap}.export-names{display:flex;gap:8px;align-items:center;font:13px var(--ui)}.export-names input{width:auto;min-height:24px}#export-dialog .fields{flex-wrap:wrap;justify-content:center}
 .link-list{display:grid;gap:10px;max-width:660px;margin:16px auto 0}
 .link-list dt{margin-bottom:3px}
 .link-list dd{display:flex;align-items:center;justify-content:center;gap:10px;margin:0}
@@ -214,10 +215,18 @@ dialog .fields{justify-content:end;padding-top:4px}
   </div>
   <p class="fine">Publish &amp; share creates a named link and an anonymous Gallery link. Timelines with at least two people appear in the Gallery. Relationship types stay visible publicly; anyone with the editing link can change this timeline.</p>
   <p class="fine" id="share-state"></p>
-  <p class="fine" id="share-result" role="status" aria-live="polite"></p>
-  <dl id="timeline-links" class="link-list" hidden></dl>
 </section>
 </main>
+<dialog id="export-dialog" aria-labelledby="export-title">
+  <button type="button" id="export-close" class="editor-close">Close</button><h2 id="export-title">Share your timeline</h2>
+  <dl id="timeline-links" class="link-list" hidden></dl>
+  <p class="fine" id="share-result" role="status" aria-live="polite"></p>
+  <div class="export-options"><label class="export-names"><input type="checkbox" id="export-names"> Include names &amp; private labels</label></div>
+  <canvas id="export-preview" aria-label="Export preview"></canvas><video id="export-video" controls playsinline hidden aria-label="Export video preview"></video>
+  <p class="fine">Names and private labels are hidden by default. Your public tagline is included.</p>
+  <div class="fields"><button type="button" id="export-download" disabled>Download image</button><button type="button" id="export-movie">Download video</button></div>
+  <p class="fine" id="export-status" role="status" aria-live="polite"></p>
+</dialog>
 <dialog id="person-dialog" aria-labelledby="dialog-title">
   <p class="eyebrow" id="dialog-age"></p>
   <h2 id="dialog-title">Add a relationship</h2>
@@ -243,7 +252,8 @@ dialog .fields{justify-content:end;padding-top:4px}
 <noscript><p>Enable JavaScript to draw a timeline.</p></noscript>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
-<script src="./timeline-plot.js"></script>
+<script src="./timeline-plot.js?v=41df615b30a0"></script>
+<script src="./social-export.js?v=e0bced999acb"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -689,15 +699,16 @@ function renderPlot(restoreFocus) {
   });
   for (const item of data.events) {
     const eventY = y(item.age);
-    const marker = element('g', {class:'event-mark', 'data-event':item.id, tabindex:0, role:'button', 'aria-label':`Edit ${item.type}, ${ageText(item.age)}`});
+    const typeLabel = ClosenessPlot.eventTypeLabel(item.type);
+    const marker = element('g', {class:'event-mark', 'data-event':item.id, tabindex:0, role:'button', 'aria-label':`Edit ${typeLabel}, ${ageText(item.age)}`});
     eventRules.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'var(--accent)','stroke-dasharray':'2 4',opacity:.5,'pointer-events':'none'}));
     marker.append(element('line', {x1:0,x2:width-8,y1:eventY,y2:eventY,stroke:'transparent','stroke-width':10,'pointer-events':'stroke'}), element('title', {}, 'Drag the label or dotted line to move; click to edit.'));
     const mobileEventLabels = window.matchMedia('(max-width:680px)').matches;
-    const chipWidth = Math.min(130, Math.max(70, item.type.length * 5.5 + 16), width - 80);
-    const chipText = item.type.length > 19 ? `${item.type.slice(0, 18)}…` : item.type;
+    const chipWidth = Math.min(130, Math.max(70, typeLabel.length * 5.5 + 16), width - 80);
+    const chipText = typeLabel.length > 19 ? `${typeLabel.slice(0, 18)}…` : typeLabel;
     marker.append(element('rect',{x:mobileEventLabels ? 64 : -100,y:mobileEventLabels ? eventY-32 : eventY-16,width:mobileEventLabels ? chipWidth : 94,height:mobileEventLabels ? 40 : 32,fill:'transparent'}));
     if (mobileEventLabels) marker.append(element('rect',{x:64,y:eventY-25,width:chipWidth,height:22,rx:3,fill:'var(--paper)',stroke:'var(--rule)','pointer-events':'none'}));
-    marker.append(element('text',{x:mobileEventLabels ? 71 : -12,y:mobileEventLabels ? eventY-10 : eventY+3,'text-anchor':mobileEventLabels ? 'start' : 'end',class:'event-text','pointer-events':'none'}, mobileEventLabels ? chipText : item.type));
+    marker.append(element('text',{x:mobileEventLabels ? 71 : -12,y:mobileEventLabels ? eventY-10 : eventY+3,'text-anchor':mobileEventLabels ? 'start' : 'end',class:'event-text','pointer-events':'none'}, mobileEventLabels ? chipText : typeLabel));
     marker.addEventListener('pointerdown', event => {
       if (placementMode) return;
       event.stopPropagation();
@@ -786,7 +797,7 @@ function render() {
   $('empty-events').hidden = !!data.events.length;
   for (const item of data.events) {
     const li = document.createElement('li'), button = document.createElement('button'), small = document.createElement('small');
-    button.type = 'button'; button.append(document.createTextNode(item.label ? `${item.type} · ${item.label}` : item.type));
+    button.type = 'button'; const typeLabel = ClosenessPlot.eventTypeLabel(item.type); button.append(document.createTextNode(item.label ? `${typeLabel} · ${item.label}` : typeLabel));
     small.textContent = ageText(item.age); button.append(small);
     button.addEventListener('click', () => openEvent(item.age,item)); li.append(button); eventList.append(li);
   }
@@ -1081,7 +1092,7 @@ function openPersonDialog(track, place) {
   $('person-dialog').showModal();
   $('category').focus();
 }
-for (const type of eventTypes) $('event-type').add(new Option(type,type));
+for (const [value, label] of ClosenessPlot.eventOptions) $('event-type').add(new Option(label,value));
 function openEvent(age, item = null) {
   if (data.birthYear === null) { $('birth').focus(); return status('Choose a birth year first.'); }
   placementMode = null;
@@ -1089,7 +1100,7 @@ function openEvent(age, item = null) {
   render();
   editingEvent = item;
   eventAge = item?.age ?? round(clamp(age,0,horizon(data)));
-  $('event-type').value = item?.type ?? eventTypes[0];
+  $('event-type').value = ClosenessPlot.canonicalEventType(item?.type ?? eventTypes[0]);
   $('event-label').value = item?.label ?? '';
   $('event-delete').hidden = !item;
   selected = null;
@@ -1255,7 +1266,7 @@ function displayLinks(showAll) {
   linksVisible = showAll ? 'all' : 'edit';
   const list = $('timeline-links');
   const options = [['Editing link', remote.editId]];
-  if (showAll && remote.published) options.push(['With names', remote.viewId], ['Without names', remote.publicId]);
+  if (showAll && remote.published) options.push(['With names', remote.viewId], ['Gallery · without names', remote.publicId]);
   list.replaceChildren();
   for (const [label, id] of options) {
     const group = document.createElement('div');
@@ -1263,18 +1274,15 @@ function displayLinks(showAll) {
     term.className = 'label';
     term.textContent = label;
     const definition = document.createElement('dd');
-    const link = document.createElement('a');
-    link.className = 'fine';
-    link.href = ClosenessAPI.timelineURL(id);
-    link.textContent = link.href;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
+    const url = ClosenessAPI.timelineURL(id);
     const button = document.createElement('button');
-    button.type = 'button';
-    button.textContent = 'Copy';
-    button.setAttribute('aria-label', label === 'Editing link' ? 'Copy editing link' : `Copy link ${label.toLowerCase()}`);
-    button.addEventListener('click', () => copyTimelineLink(link));
-    definition.append(link, button);
+    button.type = 'button'; button.textContent = 'Copy link';
+    button.setAttribute('aria-label', `Copy ${label.toLowerCase()}`);
+    button.addEventListener('click', async () => {
+      const copied = await copyTimelineLink({href:url});
+      if (copied) button.textContent = 'Copied';
+    });
+    definition.append(button);
     group.append(term, definition);
     list.append(group);
   }
@@ -1285,20 +1293,23 @@ async function copyTimelineLink(link, message = 'Link copied.') {
   try {
     await navigator.clipboard.writeText(link.href);
     $('share-result').textContent = message;
+    return true;
   } catch {
-    const range = document.createRange();
-    range.selectNodeContents(link);
-    const selection = window.getSelection();
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    $('share-result').textContent = 'Link selected. Copy it with your browser.';
+    const input = document.createElement('input');
+    input.value = link.href; input.readOnly = true;
+    input.style.cssText='position:fixed;left:-10000px;top:0';
+    $('export-dialog').append(input); input.select();
+    let copied = false;
+    try { copied = document.execCommand('copy'); } catch {}
+    input.remove();
+    $('share-result').textContent = copied ? message : 'Copy is unavailable in this browser.';
+    return copied;
   }
 }
 
 async function copySavedLink(publish) {
   const url = ClosenessAPI.timelineURL(publish ? remote.viewId : remote.editId);
-  const link = [...$('timeline-links').querySelectorAll('a')].find(item => item.href === url);
-  if (link) await copyTimelineLink(link, publish ? 'Share link copied. Gallery version has no names.' : 'Editing link copied. Keep it private.');
+  await copyTimelineLink({href:url}, publish ? 'Share link copied.' : 'Editing link copied. Keep it private.');
 }
 
 function beginDeferredCopy(message) {
@@ -1342,11 +1353,12 @@ async function saveLink(publish) {
   const resultText = $('share-result');
   if (remote && !hasUnsavedChanges() && (!publish || remote.published)) {
     displayLinks(publish);
-    await copySavedLink(publish);
+    if (!publish) await copySavedLink(false);
+    else resultText.textContent = '';
     return;
   }
   const snapshot = JSON.stringify(data);
-  const deferredCopy = beginDeferredCopy(publish ? 'Share link copied. Gallery version has no names.' : 'Editing link copied. Keep it private.');
+  const deferredCopy = publish ? null : beginDeferredCopy('Editing link copied. Keep it private.');
   saving = true;
   resultText.textContent = publish ? 'Sharing this timeline…' : 'Saving this timeline…';
   render();
@@ -1359,11 +1371,12 @@ async function saveLink(publish) {
     remote = binding(result, snapshot);
     syncEditingURL();
     displayLinks(publish);
+    resultText.textContent = '';
     if (deferredCopy) {
       const copied = await deferredCopy.resolve(ClosenessAPI.timelineURL(publish ? remote.viewId : remote.editId));
       if (copied !== true) await copySavedLink(publish);
-    } else {
-      await copySavedLink(publish);
+    } else if (!publish) {
+      await copySavedLink(false);
     }
   } catch (error) {
     deferredCopy?.reject(error);
@@ -1392,8 +1405,72 @@ async function loadEditingLink() {
   }
 }
 
-$('share').addEventListener('click', () => saveLink(true));
-$('editing-link').addEventListener('click', () => saveLink(false));
+let exportImageURL = null, exportVideoURL = null, exportVideoType = '', exportController = null, exportRevision = 0;
+const exportOptions = () => ({width:1080,height:1920});
+function exportModel() {
+  const names = $('export-names').checked;
+  const named = ClosenessPlot.namedLines(data);
+  return { age:horizon(data), tagline:data.tagline,
+    lines:data.relationships.map((track,index) => ({label:names ? named[index].label : relationshipType(track) || categories[track.category].fallback, color:named[index].color, ending:track.ending,points:clone(track.points)})),
+    events:data.events.map(item=>({age:item.age,type:ClosenessPlot.eventTypeLabel(item.type),label:names?item.label:''})) };
+}
+function releaseExport() {
+  for (const url of [exportImageURL,exportVideoURL]) if(url) URL.revokeObjectURL(url);
+  exportImageURL = exportVideoURL = null;
+  $('export-video').pause(); $('export-video').removeAttribute('src'); $('export-video').load();
+  $('export-download').disabled = true;
+}
+function downloadExport(url,extension) {
+  const link=document.createElement('a');link.href=url;link.download=`closeness-lines.${extension}`;
+  document.body.append(link);link.click();link.remove();
+}
+function exportBusy(busy) {
+  $('export-names').disabled=busy;
+  $('export-download').disabled=busy || !exportImageURL;
+  $('export-movie').disabled=busy || !ClosenessExport.supported();
+  if(!ClosenessExport.supported()) $('export-movie').title='Video export is unavailable in this browser.';
+}
+async function makeExportImage() {
+  const revision = ++exportRevision;
+  exportController?.abort(); releaseExport(); exportBusy(true);
+  $('export-preview').hidden=false; $('export-video').hidden=true;
+  $('export-status').textContent='Preparing image…';
+  try {
+    ClosenessExport.render($('export-preview'),exportModel(),exportOptions());
+    const blob=await new Promise(resolve=>$('export-preview').toBlob(resolve,'image/png'));
+    if (!blob) throw new Error('Could not create the image.');
+    if (!$('export-dialog').open || revision !== exportRevision) return;
+    exportImageURL=URL.createObjectURL(blob); $('export-status').textContent='';
+  } catch(error) { if(revision===exportRevision) $('export-status').textContent=error.message; }
+  finally { if(revision===exportRevision) exportBusy(false); }
+}
+function openSharing(publish) {
+  $('export-title').textContent = publish ? 'Share your timeline' : 'Save your timeline';
+  $('export-dialog').showModal();
+  makeExportImage();
+  saveLink(publish);
+}
+$('export-names').addEventListener('change',makeExportImage);
+$('export-download').addEventListener('click',()=>{if(exportImageURL) {ClosenessExport.render($('export-preview'),exportModel(),exportOptions());$('export-preview').hidden=false;$('export-video').hidden=true;downloadExport(exportImageURL,'png');}});
+$('export-movie').addEventListener('click',async()=>{
+  if(exportVideoURL) {downloadExport(exportVideoURL,exportVideoType.includes('mp4')?'mp4':'webm');return;}
+  const revision=exportRevision, controller=new AbortController(); exportController=controller; exportBusy(true);
+  $('export-preview').hidden=false; $('export-video').hidden=true;
+  $('export-status').textContent='Creating video… Keep this tab open.';
+  try {
+    const blob=await ClosenessExport.record(exportModel(),{...exportOptions(),canvas:$('export-preview'),signal:controller.signal,onProgress:progress=>{if(revision===exportRevision) $('export-status').textContent=`Creating video… ${Math.round(progress*100)}%`;}});
+    if (!$('export-dialog').open || revision!==exportRevision) return;
+    exportVideoType=blob.type; exportVideoURL=URL.createObjectURL(blob);
+    $('export-preview').hidden=true; $('export-video').hidden=false; $('export-video').src=exportVideoURL;
+    downloadExport(exportVideoURL,blob.type.includes('mp4')?'mp4':'webm');
+    $('export-status').textContent='Video ready. Click Download video again if the download did not start.';
+  } catch(error) { if(error.name!=='AbortError' && revision===exportRevision) $('export-status').textContent=error.message; }
+  finally { if(revision===exportRevision) {exportBusy(false);exportController=null;} }
+});
+$('export-close').addEventListener('click',()=>$('export-dialog').close());
+$('export-dialog').addEventListener('close',()=>{exportRevision++;exportController?.abort();releaseExport();});
+$('share').addEventListener('click', () => openSharing(true));
+$('editing-link').addEventListener('click', () => openSharing(false));
 $('tagline').addEventListener('input', event => {
   const next = normalizeTagline(event.target.value);
   if (event.target.value !== next) event.target.value = next;

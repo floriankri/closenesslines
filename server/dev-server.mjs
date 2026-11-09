@@ -25,7 +25,8 @@ const staticFiles = new Map([
   ['favicon.svg', 'image/svg+xml'],
   ['api.js', 'text/javascript; charset=utf-8'],
   ['config.js', 'text/javascript; charset=utf-8'],
-  ['timeline-plot.js', 'text/javascript; charset=utf-8']
+  ['timeline-plot.js', 'text/javascript; charset=utf-8'],
+  ['social-export.js', 'text/javascript; charset=utf-8']
 ]);
 
 function openLocalStore(directory) {

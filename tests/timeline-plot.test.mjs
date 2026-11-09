@@ -24,3 +24,12 @@ test('named relationship labels retain both role and private name without duplic
   assert.equal(plot.namedLines({relationships:[track]})[0].label, 'Grandparent · Esther');
   assert.equal(plot.namedLines({relationships:[{...track,name:'Grandparent'}]})[0].label, 'Grandparent');
 });
+
+test('simplified life event options retain API compatibility and accept old change events', () => {
+  assert.deepEqual(Array.from(plot.eventOptions, ([,label]) => label), ['Moved', 'School', 'University', 'Job', 'Retirement', 'Other']);
+  assert.equal(plot.eventTypeLabel('University change'), 'University');
+  assert.equal(plot.canonicalEventType('University change'), 'University');
+  assert.equal(plot.eventTypeLabel('Job change'), 'Job');
+  assert.equal(plot.canonicalEventType('Job change'), 'New job');
+  assert.equal(plot.eventTypeLabel('Moved city'), 'Moved');
+});
