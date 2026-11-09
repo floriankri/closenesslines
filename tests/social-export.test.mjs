@@ -14,7 +14,7 @@ function canvas() {
 test('export fade does not repaint its final segment with opaque color',()=>{
   const target=canvas();
   renderer().render(target,{age:50,lines:[{color:'#4f6e85',ending:'fade',points:[[0,.1],[40,.2],[50,1]]}]});
-  assert.equal(target.width,1080);assert.equal(target.height,1350);
+  assert.equal(target.width,1080);assert.equal(target.height,1920);
   assert.equal(target.strokes.length,2);
   assert.equal(target.strokes[0].style,'#4f6e85');
   assert.equal(target.strokes[1].style.gradient,true);
@@ -25,4 +25,20 @@ test('video rejects pre-cancelled recording before opening any stream',async()=>
   const exporter=renderer({MediaRecorder:class {}});
   await assert.rejects(exporter.record({}, {canvas:{captureStream(){opened=true;}},signal:{aborted:true}}),{name:'AbortError'});
   assert.equal(opened,false);
+});
+
+
+test('video camera starts at birth and follows time without scrolling past the end',()=>{
+  const exporter=renderer();
+  for(const age of [8,31,88]){
+    const start=exporter.cameraFor(age,0,true);
+    const middle=exporter.cameraFor(age,.5,true);
+    const end=exporter.cameraFor(age,1,true);
+    assert.equal(start.cameraTop,0);
+    assert.equal(end.cameraBottom,age);
+    assert.ok(middle.cameraTop>=start.cameraTop && middle.cameraTop<=end.cameraTop);
+    assert.ok(end.windowAge<=18);
+  }
+  assert.equal(exporter.cameraFor(88,1,false).cameraTop,0);
+  assert.equal(exporter.cameraFor(88,1,false).windowAge,88);
 });

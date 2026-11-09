@@ -19,6 +19,18 @@ const ClosenessExport = (() => {
   const finite = value => Number.isFinite(Number(value));
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
+  function maxAgeFor(model = {}) {
+    return Math.max(1, Number(model.age) || 0, ...(Array.isArray(model.lines) ? model.lines.flatMap(line => (line.points || []).map(point => Number(point[0]) || 0)) : []));
+  }
+
+  function cameraFor(maxAge, progress = 1, scrolling = false, windowYears = 18) {
+    const age = Math.max(1, Number(maxAge) || 1);
+    const reveal = age * clamp(Number(progress) || 0, 0, 1);
+    const window = scrolling ? Math.min(windowYears, age) : age;
+    const top = scrolling ? clamp(reveal - window * 0.75, 0, Math.max(0, age - window)) : 0;
+    return { maxAge: age, revealAge: reveal, windowAge: window, cameraTop: top, cameraBottom: top + window };
+  }
+
   function safeModel(model = {}) {
     const lines = Array.isArray(model.lines) ? model.lines : [];
     return {
@@ -87,8 +99,9 @@ const ClosenessExport = (() => {
     if (!canvas || typeof canvas.getContext !== 'function') throw new TypeError('ClosenessExport.render requires a canvas');
     const model = safeModel(input);
     const width = Math.max(240, Number(options.width) || 1080);
-    const height = Math.max(320, Number(options.height) || 1350);
+    const height = Math.max(320, Number(options.height) || 1920);
     const progress = clamp(finite(options.progress) ? Number(options.progress) : 1, 0, 1);
+    const scrolling = options.scrolling === true;
     const ctx = canvas.getContext('2d');
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
@@ -97,16 +110,15 @@ const ClosenessExport = (() => {
     ctx.fillRect(0, 0, width, height);
     ctx.textBaseline = 'alphabetic';
 
-    const maxPointAge = Math.max(0, ...model.lines.flatMap(line => line.points.map(point => point[0])));
-    const maxAge = Math.max(1, model.age, maxPointAge);
-    const revealAge = maxAge * progress;
+    const camera = cameraFor(maxAgeFor(model), progress, scrolling);
+    const { maxAge, revealAge, windowAge, cameraTop, cameraBottom } = camera;
     const marginX = Math.max(58, width * 0.105);
     const axis = width / 2;
-    const top = Math.max(150, height * 0.15);
-    const bottom = height - Math.max(170, height * 0.145);
+    const top = scrolling ? 185 : Math.max(150, height * 0.15);
+    const bottom = scrolling ? height - 150 : height - Math.max(170, height * 0.145);
     const span = Math.max(1, bottom - top);
     const x = distance => axis + distance * (width / 2 - marginX);
-    const y = age => top + (age / maxAge) * span;
+    const y = age => top + ((age - cameraTop) / windowAge) * span;
 
     ctx.fillStyle = ink;
     ctx.textAlign = 'center';
@@ -121,8 +133,10 @@ const ClosenessExport = (() => {
     ctx.strokeStyle = rule;
     ctx.lineWidth = 1;
     ctx.setLineDash([4, 8]);
-    const tickStep = span / maxAge >= 24 ? 5 : span / maxAge >= 13 ? 10 : 20;
-    for (let tick = tickStep; tick < maxAge; tick += tickStep) {
+    const tickStep = span / windowAge >= 24 ? 5 : span / windowAge >= 13 ? 10 : 20;
+    const firstTick = scrolling ? Math.max(tickStep, Math.ceil(cameraTop / tickStep) * tickStep) : tickStep;
+    const lastTick = scrolling ? Math.min(maxAge, cameraBottom) : maxAge;
+    for (let tick = firstTick; tick < lastTick; tick += tickStep) {
       ctx.beginPath(); ctx.moveTo(marginX, y(tick)); ctx.lineTo(width - marginX, y(tick)); ctx.stroke();
     }
     ctx.setLineDash([]);
@@ -130,14 +144,14 @@ const ClosenessExport = (() => {
     ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(axis, top); ctx.lineTo(axis, bottom); ctx.stroke();
     ctx.fillStyle = ink;
-    ctx.beginPath(); ctx.arc(axis, top, 4, 0, Math.PI * 2); ctx.fill();
+    if (cameraTop === 0) {ctx.beginPath(); ctx.arc(axis, top, 4, 0, Math.PI * 2); ctx.fill();}
     ctx.font = `${Math.round(width * 0.019)}px ${serif}`;
     ctx.fillStyle = muted;
     ctx.textAlign = 'right';
-    ctx.fillText('birth', axis - 14, top + 5);
-    for (let tick = tickStep; tick < maxAge; tick += tickStep) ctx.fillText(String(tick), axis - 14, y(tick) + 5);
+    if (!scrolling || cameraTop <= 0) ctx.fillText('birth', axis - 14, y(0) + 5);
+    for (let tick = firstTick; tick < lastTick; tick += tickStep) ctx.fillText(String(tick), axis - 14, y(tick) + 5);
     ctx.textAlign = 'left';
-    ctx.fillText(`age ${Math.round(maxAge)}`, axis + 14, bottom + 5);
+    ctx.fillText(scrolling ? `age ${Math.floor(revealAge)}` : `age ${Math.round(maxAge)}`, axis + 14, bottom + 5);
     ctx.textAlign = 'center';
     ctx.fillText('PERSON', axis, top - 20);
     ctx.textAlign = 'left';
@@ -145,8 +159,8 @@ const ClosenessExport = (() => {
     ctx.textAlign = 'right';
     ctx.fillText('farther', width - marginX, top - 20);
     ctx.textAlign = 'center';
-    ctx.fillText('nearer', axis - (width / 2 - marginX) * 0.5, top - 20);
-    ctx.fillText('nearer', axis + (width / 2 - marginX) * 0.5, top - 20);
+    ctx.fillText('closer', axis - (width / 2 - marginX) * 0.5, top - 20);
+    ctx.fillText('closer', axis + (width / 2 - marginX) * 0.5, top - 20);
 
     const drawSegment = (line, points, from, to, stroke = line.color) => {
       if (points.length < 2) return;
@@ -161,12 +175,13 @@ const ClosenessExport = (() => {
       ctx.stroke(new Path2D(path(segment, x, y)));
     };
 
+    const revealBottom = scrolling ? Math.min(bottom, y(revealAge)) : Math.min(bottom, y(revealAge));
     model.lines.forEach(line => {
-      if (!line.points.length || line.points[0][0] > revealAge) return;
+      if (!line.points.length || line.points[0][0] > revealAge || line.points.at(-1)[0] < cameraTop) return;
       const complete = revealAge >= line.points[line.points.length - 1][0];
       ctx.save();
       ctx.beginPath();
-      ctx.rect(0, top - 8, width, Math.max(0, y(revealAge) - top + 8));
+      ctx.rect(0, top, width, Math.max(0, revealBottom - top));
       ctx.clip();
       const finalIndex = line.points.length - 1;
       if (line.ending === 'fade' && line.points.length > 1) {
@@ -181,8 +196,10 @@ const ClosenessExport = (() => {
       } else drawSegment(line, line.points, 0, finalIndex);
       ctx.restore();
       const first = line.points[0];
-      ctx.fillStyle = line.color;
-      ctx.beginPath(); ctx.arc(x(first[1]), y(first[0]), Math.max(4, width * 0.004), 0, Math.PI * 2); ctx.fill();
+      if (first[0] >= cameraTop && first[0] <= cameraBottom && first[0] <= revealAge) {
+        ctx.fillStyle = line.color;
+        ctx.beginPath(); ctx.arc(x(first[1]), y(first[0]), Math.max(4, width * 0.004), 0, Math.PI * 2); ctx.fill();
+      }
       if (line.ending === 'death' && complete) {
         const last = line.points.at(-1);
         ctx.fillStyle = paper; ctx.strokeStyle = red; ctx.lineWidth = 2;
@@ -191,11 +208,11 @@ const ClosenessExport = (() => {
       }
     });
 
-    const labels = model.lines.map((line, index) => ({ line, index, point: line.points[0] })).filter(item => item.line.label);
+    const labels = model.lines.map((line, index) => ({ line, index, point: line.points[0] })).filter(item => item.line.label && (!scrolling || (item.point[0] >= cameraTop && item.point[0] <= cameraBottom && item.point[0] <= revealAge)));
     const labelOrder = [...labels].sort((a, b) => y(a.point[0]) - y(b.point[0]));
     const showLabels = labels.length <= 8 && labelOrder.every((item, index) => index === 0 || Math.abs(y(item.point[0]) - y(labelOrder[index - 1].point[0])) >= width * 0.032);
     ctx.font = `${Math.round(width * 0.019)}px ${serif}`;
-    if (showLabels) {
+    if (showLabels && !scrolling) {
       ctx.textBaseline = 'middle';
       labels.forEach(({ line, point }) => {
         const label = line.label;
@@ -204,7 +221,7 @@ const ClosenessExport = (() => {
         ctx.fillStyle = line.color;
         ctx.fillText(label, x(point[1]) + (right ? 12 : -12), y(point[0]), Math.max(80, (right ? width-x(point[1]) : x(point[1]))-24));
       });
-    } else {
+    } else if (!scrolling) {
       const legendY = bottom + 54;
       ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = muted;
       ctx.font = `${Math.round(width * 0.018)}px ${serif}`;
@@ -224,7 +241,7 @@ const ClosenessExport = (() => {
       }
     }
 
-    model.events.filter(event => event.age <= revealAge && event.age <= maxAge).forEach(event => {
+    model.events.filter(event => event.age >= cameraTop && event.age <= revealAge && event.age <= cameraBottom).forEach(event => {
       const ey = y(event.age);
       ctx.strokeStyle = red; ctx.lineWidth = 1; ctx.setLineDash([2, 4]);
       ctx.beginPath(); ctx.moveTo(marginX, ey); ctx.lineTo(width - marginX, ey); ctx.stroke(); ctx.setLineDash([]);
@@ -244,10 +261,10 @@ const ClosenessExport = (() => {
     }
     if (options.signal?.aborted) return Promise.reject(Object.assign(new Error('Recording aborted'), { name: 'AbortError' }));
     const width = Number(options.width) || 1080;
-    const height = Number(options.height) || 1350;
+    const height = Number(options.height) || 1920;
     const fps = 30;
     const mime = ['video/mp4;codecs=h264', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(type => MediaRecorder.isTypeSupported?.(type));
-    try { render(canvas, model, { ...options, width, height, progress: 0 }); } catch (error) { return Promise.reject(error); }
+    try { render(canvas, model, { ...options, width, height, scrolling: true, progress: 0 }); } catch (error) { return Promise.reject(error); }
     let stream;
     let recorder;
     try {
@@ -258,7 +275,8 @@ const ClosenessExport = (() => {
       return Promise.reject(new Error(`Video recording could not start: ${error.message || error}`));
     }
     const chunks = [];
-    const duration = Math.max(1000, Number(options.revealMs) || 9000);
+    const maxAge = maxAgeFor(model);
+    const duration = Math.max(1000, Number(options.revealMs) || clamp(maxAge * 350, 12000, 24000));
     const started = performance.now();
     let raf;
     let settled = false;
@@ -281,7 +299,7 @@ const ClosenessExport = (() => {
       const frame = now => {
         if (settled) return;
         const progress = clamp((now - started) / duration, 0, 1);
-        try { render(canvas, model, { ...options, width, height, progress, onProgress: options.onProgress }); }
+        try { render(canvas, model, { ...options, width, height, scrolling: true, progress, onProgress: options.onProgress }); }
         catch (error) { settled = true; if (recorder.state !== 'inactive') recorder.stop(); cleanup(); reject(error); return; }
         if (progress < 1) raf = requestAnimationFrame(frame);
         else setTimeout(() => { if (!settled) recorder.stop(); }, 1000);
@@ -296,7 +314,7 @@ const ClosenessExport = (() => {
       typeof MediaRecorder !== 'undefined';
   }
 
-  return { render, record, supported };
+  return { render, record, supported, maxAgeFor, cameraFor };
 })();
 
 if (typeof globalThis !== 'undefined') globalThis.ClosenessExport = ClosenessExport;
