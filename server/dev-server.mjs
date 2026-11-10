@@ -16,6 +16,8 @@ const prototypeFiles = new Map([
   ['prototypes/graph-layouts.js', 'text/javascript; charset=utf-8']
 ]);
 const staticFiles = new Map([
+  ['impressum.html', 'text/html; charset=utf-8'],
+  ['privacy.html', 'text/html; charset=utf-8'],
   ['index.html', 'text/html; charset=utf-8'],
   ['creator.html', 'text/html; charset=utf-8'],
   ['gallery.html', 'text/html; charset=utf-8'],
