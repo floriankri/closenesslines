@@ -228,8 +228,8 @@ const ClosenessPlot = (() => {
       const eventLabel = [typeLabel, event.label].filter(Boolean).join(' · ');
       if (eventLabel) eventLine.append(node('title', {}, eventLabel));
       const compact = compactEvents && !preview;
-      const chipX = 64;
-      const chipWidth = Math.min(130, Math.max(70, (typeLabel?.length || 0) * 5.5 + 16), width - chipX - 16);
+      const chipWidth = Math.min(130, Math.max(70, (typeLabel?.length || 0) * 5.5 + 16), Math.max(0, width - 24));
+      const chipX = width - chipWidth - 8;
       const shortType = typeLabel?.length > 19 ? `${typeLabel.slice(0, 18)}…` : typeLabel;
       if (!preview && event.type) {
         if (compact) text.append(node('rect', { x: chipX, y: eventY - 25, width: chipWidth, height: 22, rx: 3, fill: paper, stroke: rule, 'stroke-width': 1, 'pointer-events': 'none' }));

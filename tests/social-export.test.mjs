@@ -7,9 +7,9 @@ function renderer(extra={}) {
   return vm.runInNewContext(`${source}\nClosenessExport`, {Path2D:class {constructor(path){this.path=path;}},...extra});
 }
 function canvas() {
-  const strokes=[];
-  const context=new Proxy({stroke(path){if(path)strokes.push({path:path.path,style:this.strokeStyle,dash:this.dash});},setLineDash(values){this.dash=Array.from(values);},createLinearGradient(){return {gradient:true,addColorStop(){}};}},{get(object,key){return key in object?object[key]:()=>{};}});
-  return {width:0,height:0,getContext:()=>context,strokes};
+  const strokes=[],texts=[];
+  const context=new Proxy({measureText(text){return {width:String(text).length*14};},fillText(text,x,y){texts.push({text,x,y});},stroke(path){if(path)strokes.push({path:path.path,style:this.strokeStyle,dash:this.dash});},setLineDash(values){this.dash=Array.from(values);},createLinearGradient(){return {gradient:true,addColorStop(){}};}},{get(object,key){return key in object?object[key]:()=>{};}});
+  return {width:0,height:0,getContext:()=>context,strokes,texts};
 }
 test('export fade does not repaint its final segment with opaque color',()=>{
   const target=canvas();
@@ -43,6 +43,20 @@ test('video camera starts at birth and follows time without scrolling past the e
   assert.equal(exporter.cameraFor(88,1,false).windowAge,88);
 });
 
+test('video labels follow the latest visible point instead of disappearing after the camera moves',()=>{
+  const exporter=renderer();
+  const model={lines:[
+    {label:'University friend',points:[[2,-.4],[25,-.2],[60,-.7]]},
+    {label:'Life partner',points:[[18,.3],[45,.5],[80,.2]]},
+    {label:'Mum',points:[[0,.1],[80,.1]]}
+  ]};
+  const camera=exporter.cameraFor(80,.75,true);
+  const labels=exporter.labelPoints(model,camera);
+  assert.deepEqual(labels.map(item=>[item.line.label,item.point[0]]),[
+    ['University friend',60],['Life partner',60],['Mum',60]
+  ]);
+});
+
 
 test('image and scrolling export use the selected time expansion and supplied type pattern',()=>{
   for(const scrolling of [false,true]){
@@ -55,4 +69,19 @@ test('image and scrolling export use the selected time expansion and supplied ty
     assert.equal(recent.strokes[0].style,'#3e725f');
     assert.deepEqual(recent.strokes[0].dash,[3.2,6.4]);
   }
+});
+
+
+test('video draws readable labels inside the frame after scrolling past their starts',()=>{
+  const target=canvas();
+  renderer().render(target,{age:80,timeScale:'recent',lines:[
+    {label:'Mum',points:[[0,-.1],[80,-.1]]},
+    {label:'Life partner',points:[[20,-.2],[80,-.2]]},
+    {label:'Dad',points:[[0,.1],[80,.1]]}
+  ]},{scrolling:true,progress:.75});
+  const labels=target.texts.filter(item=>['Mum','Life partner','Dad'].includes(item.text));
+  assert.equal(labels.length,3);
+  for(const label of labels){assert.ok(label.x>0&&label.x<1080);assert.ok(label.y>185&&label.y<1770);}
+  const left=labels.filter(item=>item.x<540);
+  assert.ok(Math.abs(left[0].y-left[1].y)>=40);
 });
