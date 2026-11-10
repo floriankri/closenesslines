@@ -33,7 +33,7 @@ input{width:76px}
 #items{list-style:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(210px,100%),210px));justify-content:start;gap:14px;padding:0;margin:16px 0}
 .timeline-card{display:block;padding:7px;border:1px solid var(--rule);text-decoration:none}
 .timeline-card:hover{border-color:var(--ink)}
-.timeline-card svg{display:block;width:100%;height:auto;max-width:210px;background:#f0ebdf}
+.timeline-card svg{display:block;width:100%;height:auto;max-width:210px;background:transparent}
 .timeline-card span{display:block;margin:5px 3px 1px}
 .timeline-card .tagline{margin:8px 3px 3px;color:var(--muted);font:400 .95rem/1.35 var(--serif);white-space:pre-line}
 .timeline-card .created{margin:7px 3px 2px;color:var(--muted);font:500 .66rem/1.4 var(--ui);letter-spacing:.08em;text-transform:uppercase}
@@ -71,10 +71,11 @@ input{width:76px}
 <button type="button" id="more" hidden>Load more</button>
 <div id="line-tooltip" class="line-tooltip" role="tooltip" hidden></div>
 <noscript><p>Enable JavaScript to see shared timelines.</p></noscript>
+<footer class="site-legal"><a href="./impressum.html">Impressum</a><a href="./privacy.html">Privacy</a></footer>
 </main>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
-<script src="./timeline-plot.js?v=8b6da73a0c74"></script>
+<script src="./timeline-plot.js?v=29f17c538d6e"></script>
 <script>
 'use strict';
 const form = document.getElementById('age-filter');

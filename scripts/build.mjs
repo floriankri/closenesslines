@@ -2,7 +2,7 @@ import { mkdir, rm, copyFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 const root = fileURLToPath(new URL('../', import.meta.url));
-export const publicFiles = ['index.html', 'creator.html', 'gallery.html', 'timeline.html', '404.html', 'api.js', 'config.js', 'timeline-plot.js', 'social-export.js', 'site.css', 'favicon.svg', 'CNAME', '.nojekyll'];
+export const publicFiles = ['impressum.html', 'privacy.html', 'index.html', 'creator.html', 'gallery.html', 'timeline.html', '404.html', 'api.js', 'config.js', 'timeline-plot.js', 'social-export.js', 'site.css', 'favicon.svg', 'CNAME', '.nojekyll'];
 export async function build() {
   const found = await readdir(resolve(root, 'public'));
   if (found.some(file => !publicFiles.includes(file)) || publicFiles.some(file => !found.includes(file))) throw new Error('Review the public asset allowlist before building.');

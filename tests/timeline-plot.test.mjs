@@ -63,3 +63,28 @@ test('export patterns start solid and change only for a new role within a catego
   assert.deepEqual(patterns,[[],[],[2,4],[2,4],[]]);
   for(const item of items)assert.deepEqual(Array.from(plot.trackDash(item)),[]);
 });
+
+test('gallery previews show scaled age context without private event markers or a tinted paper fill', () => {
+  class Element {
+    constructor(tag) { this.tag = tag; this.attributes = {}; this.children = []; }
+    setAttribute(key, value) { this.attributes[key] = String(value); }
+    append(...nodes) { this.children.push(...nodes); }
+    replaceChildren(...nodes) { this.children = nodes; }
+  }
+  const previewPlot = vm.runInNewContext(`${source}\nClosenessPlot`, {
+    document: { createElementNS: (_, tag) => new Element(tag) }
+  });
+  const svg = new Element('svg');
+  previewPlot.render(svg, { age: 80, duration: 80, lines: [], preview: true,
+    events: [{ age: 25, type: 'Moved city', label: 'Private place' }] });
+  const flatten = node => [node, ...node.children.flatMap(flatten)];
+  const nodes = flatten(svg);
+  const labels = nodes.filter(n => n.tag === 'text').map(n => n.textContent);
+  assert.ok(labels.includes('Birth'));
+  assert.ok(labels.includes('Age 20'));
+  assert.ok(labels.includes('Age 80'));
+  assert.ok(!labels.some(label => String(label).includes('Moved') || String(label).includes('Private')));
+  assert.ok(!nodes.some(n => n.attributes.fill === '#f0ebdf'));
+  const eventLayer = nodes.find(n => n.attributes['aria-label'] === 'Life events');
+  assert.equal(eventLayer.children.length, 0);
+});

@@ -178,22 +178,24 @@ const ClosenessPlot = (() => {
     const rule = 'var(--rule, #d4cec0)';
     const ink = 'var(--ink, #24241f)';
     const accent = 'var(--accent, #a33d2d)';
-    const paper = preview ? '#f0ebdf' : 'var(--paper, #f7f4eb)';
+    const paper = 'var(--paper, #f7f4eb)';
     group.append(horizontalRule(0, rule));
     if (preview) {
-      // Keep the small gallery cards legible without turning them into a second
-      // graph: a pair of age and closeness guides gives the curves some context,
-      // while the actual relationship geometry remains untouched.
       const previewGuide = attributes => node('line', {
         stroke: rule, 'stroke-width': 1, 'stroke-dasharray': '2 4', opacity: .42,
         'pointer-events': 'none', ...attributes
       });
-      if (span > 2) {
-        for (const fraction of [1 / 3, 2 / 3]) {
-          const guideY = y(span * fraction);
-          group.append(previewGuide({ x1: 7, x2: width - 7, y1: guideY, y2: guideY }));
-        }
+      const step = span <= 10 ? 2 : span <= 40 ? 5 : 10;
+      let previousY = top;
+      for (let tick = step; tick < span; tick += step) {
+        const tickY = y(tick);
+        if (tickY - previousY < 38 || bottom - tickY < 30) continue;
+        previousY = tickY;
+        group.append(horizontalRule(tick, rule));
+        text.append(node('text', { x: 8, y: tickY - 5, 'font-size': 8 }, `Age ${tick}`));
       }
+      text.append(node('text', { x: 8, y: top - 5, 'font-size': 8 }, 'Birth'));
+      text.append(node('text', { x: width - 8, y: bottom - 5, 'font-size': 8, 'text-anchor': 'end' }, `Age ${displayAge}`));
       for (const fraction of [.5, -.5]) {
         const guideX = x(fraction);
         group.append(previewGuide({ x1: guideX, x2: guideX, y1: top, y2: bottom }));
@@ -216,7 +218,7 @@ const ClosenessPlot = (() => {
       const endText = ending === 'now' ? `Now · Age ${displayAge}` : ending === 'death' ? `Death · Age ${displayAge}` : `Age ${displayAge}`;
       text.append(node('text', { x: width - 8, y: bottom - 6, 'text-anchor': 'end', 'font-weight': 700, fill: ending === 'death' ? accent : ink }, endText));
     }
-    for (const event of events) {
+    for (const event of preview ? [] : events) {
       if (!Number.isFinite(Number(event.age)) || event.age < 0 || event.age > span) continue;
       const eventY = y(Number(event.age));
       const eventLine = node('line', { x1: 8, x2: preview ? width * .46 : width - 8, y1: eventY, y2: eventY,
