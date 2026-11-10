@@ -155,9 +155,9 @@ const ClosenessPlot = (() => {
       }).filter(x => x >= 0 && x <= plot.width);
   }
 
-  function render(svg, { age, duration = age, lines, events = [], ending = 'snapshot', selected = null, preview = false, tooltip = null, compactEvents = false }) {
+  function render(svg, { age, duration = age, lines, events = [], ending = 'snapshot', selected = null, preview = false, tooltip = null, compactEvents = false, timeScale = preview ? 'recent' : getTimeScale() }) {
     const width = preview ? 210 : svg.clientWidth || 600;
-    const height = preview ? 420 : svg.clientHeight || 840;
+    const height = preview ? width * 16 / 9 : svg.clientHeight || 840;
     const mid = width / 2;
     const top = preview ? 13 : 30;
     const span = Number.isFinite(Number(duration)) ? Number(duration) : age;
@@ -165,7 +165,7 @@ const ClosenessPlot = (() => {
     const bottom = span ? height - (preview ? 13 : 31) : top;
     const spread = mid - (preview ? 12 : 18);
     const x = distance => mid + spread * distance;
-    const y = value => span ? top + (bottom - top) * ageRatio(value, span) : top;
+    const y = value => span ? top + (bottom - top) * ageRatio(value, span, timeScale) : top;
     const lineWidth = preview ? 1.4 : 2.1;
     const prefix = `plot-${++plotId}`;
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);

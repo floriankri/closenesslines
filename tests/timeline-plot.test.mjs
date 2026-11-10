@@ -72,7 +72,8 @@ test('gallery previews show scaled age context without private event markers or 
     replaceChildren(...nodes) { this.children = nodes; }
   }
   const previewPlot = vm.runInNewContext(`${source}\nClosenessPlot`, {
-    document: { createElementNS: (_, tag) => new Element(tag) }
+    document: { createElementNS: (_, tag) => new Element(tag) },
+    localStorage: { getItem: () => 'equal' }
   });
   const svg = new Element('svg');
   previewPlot.render(svg, { age: 80, duration: 80, lines: [], preview: true,
@@ -81,7 +82,12 @@ test('gallery previews show scaled age context without private event markers or 
   const nodes = flatten(svg);
   const labels = nodes.filter(n => n.tag === 'text').map(n => n.textContent);
   assert.ok(labels.includes('Birth'));
-  assert.ok(labels.includes('Age 20'));
+  assert.ok(labels.includes('Age 40'));
+  const [, , width, height] = svg.attributes.viewBox.split(' ').map(Number);
+  assert.ok(Math.abs(width / height - 9 / 16) < 1e-10);
+  const middleAge = nodes.find(n => n.tag === 'text' && n.textContent === 'Age 40');
+  assert.ok(Math.abs(Number(middleAge.attributes.y) - (13 + (height - 26) * .5 ** 1.6 - 5)) < 1e-8);
+  assert.equal(previewPlot.getTimeScale(), 'equal');
   assert.ok(labels.includes('Age 80'));
   assert.ok(!labels.some(label => String(label).includes('Moved') || String(label).includes('Private')));
   assert.ok(!nodes.some(n => n.attributes.fill === '#f0ebdf'));
