@@ -302,7 +302,8 @@ test('taglines are public-safe, limited, and creation timestamps survive edits',
 });
 
 test('birth month gives a precise current horizon without leaking it publicly', async t => {
-  const { request, save } = await testServer(t, { now: () => new Date('2026-11-04T12:00:00Z') });
+  let date = new Date('2026-11-04T12:00:00Z');
+  const { request, save } = await testServer(t, { now: () => date });
   const input = structuredClone(timeline);
   input.birthYear = 1991;
   input.birthMonth = 10;
@@ -337,6 +338,15 @@ test('birth month gives a precise current horizon without leaking it publicly', 
   }));
   const invalidBirth = await request('/api/timelines', { method: 'POST', body: { timeline: currentYearBeforeBirthday, publish: false } });
   assert.equal(invalidBirth.response.status, 400);
+
+  date = new Date('2027-11-04T12:00:00Z');
+  for (const id of [saved.viewId, saved.publicId]) {
+    const snapshot = await request('/api/timelines/' + id);
+    assert.equal(snapshot.json.age, 35);
+    assert.equal(snapshot.json.duration, 35.083);
+  }
+  const gallery = await request('/api/gallery?minAge=35&maxAge=35');
+  assert.equal(gallery.json.items.find(item => item.publicId === saved.publicId)?.age, 35);
 });
 
 test('gallery ranking remains ordered across the twelve-item page boundary', async t => {

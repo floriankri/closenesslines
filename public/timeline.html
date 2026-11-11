@@ -103,7 +103,7 @@ async function openTimeline() {
     const named = result.mode === 'view';
     const lines = named ? ClosenessPlot.namedLines(result.timeline) : ClosenessPlot.publicLines(result.lines);
     const events = named ? (result.timeline.events ?? []) : (result.events ?? []);
-    const ending = named ? result.timeline.endMode : 'snapshot';
+    const ending = named && result.timeline.endMode === 'death' ? 'death' : 'snapshot';
     const viewer = document.getElementById('viewer');
     const tagline = document.getElementById('timeline-tagline');
     const createdLabel = document.getElementById('timeline-created');
