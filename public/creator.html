@@ -212,7 +212,6 @@ dialog .fields{justify-content:end;padding-top:4px}
   <div class="actions">
     <button type="button" class="primary" id="share" disabled>Publish &amp; share</button>
     <button type="button" id="editing-link" disabled>Save / editing link</button>
-    <button type="button" id="open-export" disabled>Export</button>
   </div>
   <p class="fine">Publish &amp; share creates a named link and an anonymous Gallery link. Timelines with at least two people appear in the Gallery. Relationship types stay visible publicly; anyone with the editing link can change this timeline.</p>
   <p class="fine" id="share-state"></p>
@@ -1259,7 +1258,6 @@ function hasUnsavedChanges() {
 
 function renderSharing() {
   const canExport = data.birthYear !== null && data.relationships.length > 0;
-  $('open-export').disabled = !canExport;
   const ready = !editUnavailable && !saving && canExport;
   $('share').disabled = $('editing-link').disabled = !ready;
   const state = $('share-state');
@@ -1467,7 +1465,6 @@ function openSharing(publish) {
   openExport(publish ? 'Share your timeline' : 'Save your timeline');
   saveLink(publish);
 }
-$('open-export').addEventListener('click', () => openExport('Export your timeline'));
 $('export-names').addEventListener('change',makeExportImage);
 $('export-download').addEventListener('click',()=>{if(exportImageURL) {ClosenessExport.render($('export-preview'),exportModel(),exportOptions());$('export-preview').hidden=false;$('export-video').hidden=true;downloadExport(exportImageURL,'png');}});
 $('export-movie').addEventListener('click',async()=>{
