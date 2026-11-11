@@ -23,3 +23,7 @@ model before passing it to the renderer. No backend or database changes required
 Verified in the local in-app browser: PNG download, image dimensions, MP4
 creation (1080×1920, video metadata loads without error), desktop/mobile dialog.
 Native sharing targets and physical-device Safari have not been exercised.
+
+## Persistent video labels (10 November 2026)
+
+Scrolling video labels follow the latest visible/revealed point of each relationship, including lines whose original start has scrolled offscreen. Their anchors interpolate the actual cubic curve in the selected age scale. Up to eight labels are placed on the corresponding side, spaced apart vertically, kept inside the plot and connected with fine leaders. Paper backing keeps text legible over lines. Labels use the prepared export model, so the existing custom-name opt-in remains the privacy boundary. Static image label/legend behavior is unchanged.

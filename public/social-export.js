@@ -64,7 +64,7 @@ const ClosenessExport = (() => {
     return d;
   }
 
-  function visiblePoints(points, age) {
+  function visiblePoints(points, age, timeScale) {
     if (!points.length || age < points[0][0]) return [];
     const result = [];
     for (let i = 0; i < points.length; i++) {
@@ -72,13 +72,24 @@ const ClosenessExport = (() => {
       else {
         const previous = points[i - 1];
         if (previous && points[i][0] > previous[0]) {
-          const t = (age - previous[0]) / (points[i][0] - previous[0]);
-          result.push([age, previous[1] + (points[i][1] - previous[1]) * clamp(t, 0, 1)]);
+          const ratio = value => timeScale === 'equal' ? value : Math.pow(Math.max(0, value), 1.6);
+          const t = clamp((ratio(age) - ratio(previous[0])) / (ratio(points[i][0]) - ratio(previous[0])), 0, 1);
+          const bend = t * t * (3 - 2 * t);
+          result.push([age, previous[1] + (points[i][1] - previous[1]) * bend]);
         }
         break;
       }
     }
     return result;
+  }
+
+  // Keep identities in view while the video camera follows the timeline.
+  function labelPoints(model, camera) {
+    return model.lines.map(line => {
+      const points = visiblePoints(line.points, camera.revealAge, model.timeScale)
+        .filter(point => point[0] >= camera.cameraTop && point[0] <= camera.cameraBottom);
+      return points.length ? { line, point: points.at(-1) } : null;
+    }).filter(Boolean);
   }
 
   function roundedRect(ctx, x, y, width, height, radius) {
@@ -213,12 +224,43 @@ const ClosenessExport = (() => {
       }
     });
 
-    const labels = model.lines.map(line => ({ line, point: line.points[0] })).filter(item => item.line.label && (!scrolling || (item.point[0] >= cameraTop && item.point[0] <= cameraBottom && item.point[0] <= revealAge)));
+    const labels = (scrolling ? labelPoints(model, camera) : model.lines.map(line => ({ line, point: line.points[0] })))
+      .filter(item => item.line.label && item.point[0] <= revealAge);
     const labelOrder = [...labels].sort((a, b) => y(a.point[0]) - y(b.point[0]));
     const showLabels = labels.length <= 8 && labelOrder.every((item, index) => index === 0 || Math.abs(y(item.point[0]) - y(labelOrder[index - 1].point[0])) >= width * 0.032);
     ctx.font = `${Math.round(width * 0.019)}px ${serif}`;
 
-    if (showLabels && !scrolling) {
+    if (scrolling) {
+      const visibleLabels = [...labels].sort((a, b) => y(a.point[0]) - y(b.point[0])).slice(0, 8);
+      const fontSize = Math.round(width * 0.026);
+      const minGap = fontSize * 1.6;
+      ctx.textBaseline = 'middle';
+      ctx.font = `${fontSize}px ${serif}`;
+      for (const right of [false, true]) {
+        const side = visibleLabels.filter(item => (item.point[1] >= 0) === right)
+          .map(item => ({ ...item, labelY: clamp(y(item.point[0]), top + minGap, bottom - minGap) }));
+        for (let i = 1; i < side.length; i++) side[i].labelY = Math.max(side[i].labelY, side[i - 1].labelY + minGap);
+        for (let i = side.length - 1; i >= 0; i--) side[i].labelY = Math.min(side[i].labelY, i === side.length - 1 ? bottom - minGap : side[i + 1].labelY - minGap);
+        side.forEach(({ line, point, labelY }) => {
+          const label = line.label.length > 28 ? `${line.label.slice(0, 27)}…` : line.label;
+          const available = axis - marginX - 30;
+          const labelWidth = Math.min(ctx.measureText(label).width, available);
+          const labelX = right ? clamp(x(point[1]) + 18, axis + 20, width - marginX - labelWidth)
+            : clamp(x(point[1]) - 18, marginX + labelWidth, axis - 20);
+          ctx.setLineDash([]);
+          ctx.strokeStyle = line.color;
+          ctx.lineWidth = 1;
+          ctx.globalAlpha = .6;
+          ctx.beginPath(); ctx.moveTo(x(point[1]), y(point[0])); ctx.lineTo(labelX, labelY); ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = paper;
+          ctx.fillRect(right ? labelX - 5 : labelX - labelWidth - 5, labelY - fontSize * .65, labelWidth + 10, fontSize * 1.3);
+          ctx.textAlign = right ? 'left' : 'right';
+          ctx.fillStyle = line.color;
+          ctx.fillText(label, labelX, labelY, available);
+        });
+      }
+    } else if (showLabels) {
       ctx.textBaseline = 'middle';
       labels.forEach(({ line, point }) => {
         const label = line.label;
@@ -327,7 +369,7 @@ const ClosenessExport = (() => {
       typeof MediaRecorder !== 'undefined';
   }
 
-  return { render, record, supported, maxAgeFor, cameraFor };
+  return { render, record, supported, maxAgeFor, cameraFor, labelPoints };
 })();
 
 if (typeof globalThis !== 'undefined') globalThis.ClosenessExport = ClosenessExport;

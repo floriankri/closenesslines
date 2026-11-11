@@ -107,6 +107,7 @@ dialog .fields{justify-content:end;padding-top:4px}
 #export-dialog{width:min(560px,calc(100vw - 24px));max-height:92dvh;overflow:auto}#export-dialog h2{margin-top:0}#export-dialog .link-list{margin:10px 0;gap:0}#export-dialog .link-list>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid var(--rule)}#export-dialog .link-list dd{margin:0}#export-dialog .link-list dt{letter-spacing:.03em}#export-close{float:right;margin-left:12px}#export-preview,#export-video{display:block;width:auto;max-width:100%;height:auto;max-height:28dvh;margin:12px auto;border:1px solid var(--rule)}#export-video{aspect-ratio:9/16}.export-options{display:flex;gap:16px;align-items:end;flex-wrap:wrap}.export-names{display:flex;gap:8px;align-items:center;font:13px var(--ui)}.export-names input{width:auto;min-height:24px}#export-dialog .fields{flex-wrap:wrap;justify-content:center}
 .link-list{display:grid;gap:10px;max-width:660px;margin:16px auto 0}
 .link-list dt{margin-bottom:3px}
+.link-list .edit-link-note{display:block;margin-top:4px;font:400 .8rem/1.4 var(--ui);letter-spacing:normal;text-transform:none;color:var(--muted)}
 .link-list dd{display:flex;align-items:center;justify-content:center;gap:10px;margin:0}
 .link-list dd a{min-width:0;overflow-wrap:anywhere}
 .link-list dd button{flex-shrink:0}
@@ -139,6 +140,8 @@ dialog .fields{justify-content:end;padding-top:4px}
 #event-editor{border-bottom:1px solid var(--rule);padding-bottom:16px}#event-editor form{display:grid;gap:10px}#event-editor h2{margin:8px 0}#close-event{float:right}
 #panel-toggle{display:none}.sidebar{position:sticky;top:12px;align-self:start;max-height:calc(100dvh - 24px);overflow:auto;padding-right:8px}
 @media(max-width:680px){body{padding-bottom:76px}.sidebar{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:20;background:var(--paper);border-top:1px solid var(--ink);padding:0;max-height:55dvh;box-shadow:0 -3px 14px #24241f15}#panel-toggle{position:sticky;top:0;z-index:2;background:var(--paper);display:flex;justify-content:space-between;width:100%;min-height:52px;border:0;padding:12px 16px}#panel-body{display:none;padding:0 16px 16px}.sidebar.panel-open #panel-body{display:block}.editor:not([hidden]){position:static;max-height:none;box-shadow:none;border:0;padding:12px 0;margin:0}.section-heading{flex-direction:row;align-items:center;justify-content:space-between}.section-heading button{width:auto}#relationships{display:block}.sidebar.placing #panel-body{display:block}.sidebar.placing #panel-body>:not(.placement-heading){display:none}#panel-toggle span{transition:transform .15s}.panel-open #panel-toggle span{transform:rotate(180deg)}}
+.mobile-creator-note{display:none}
+@media(max-width:600px){.mobile-creator-note{display:flex;align-items:start;gap:12px;margin:14px 0;padding:12px;border:1px solid var(--rule);color:var(--muted);font:400 .8rem/1.5 var(--ui)}.mobile-creator-note p{margin:0;flex:1}.mobile-creator-note button{flex:none;min-width:36px;min-height:36px;margin:-5px -5px -5px 0;padding:4px;border:0;background:transparent;font-size:1.25rem;line-height:1}}
 </style>
 </head>
 <body>
@@ -151,6 +154,7 @@ dialog .fields{justify-content:end;padding-top:4px}
     <a href="./gallery.html">Gallery</a>
   </nav>
 </header>
+<aside class="mobile-creator-note" id="mobile-creator-note" aria-label="Creating on a phone"><p>Drawing is easier on a computer or tablet. You can still create on your phone.</p><button type="button" id="dismiss-mobile-note" aria-label="Dismiss mobile note">×</button></aside>
 <section class="hero page-heading">
   <h1 class="site-title">Draw <em>a life.</em></h1>
 </section>
@@ -250,10 +254,11 @@ dialog .fields{justify-content:end;padding-top:4px}
 <noscript><p>Enable JavaScript to draw a timeline.</p></noscript>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
-<script src="./timeline-plot.js?v=b57200787676"></script>
-<script src="./social-export.js?v=ead07a1ee0bc"></script>
+<script src="./timeline-plot.js?v=cf7f82d57f23"></script>
+<script src="./social-export.js?v=9452d43ca699"></script>
 <script>
 'use strict';
+document.getElementById('dismiss-mobile-note').addEventListener('click', () => { document.getElementById('mobile-creator-note').hidden = true; });
 const $ = id => document.getElementById(id);
 const svg = $('plot');
 const ns = 'http://www.w3.org/2000/svg';
@@ -1253,7 +1258,8 @@ function hasUnsavedChanges() {
 }
 
 function renderSharing() {
-  const ready = !editUnavailable && !saving && data.birthYear !== null && data.relationships.length > 0;
+  const canExport = data.birthYear !== null && data.relationships.length > 0;
+  const ready = !editUnavailable && !saving && canExport;
   $('share').disabled = $('editing-link').disabled = !ready;
   const state = $('share-state');
   state.textContent = '';
@@ -1278,6 +1284,12 @@ function displayLinks(showAll) {
     const term = document.createElement('dt');
     term.className = 'label';
     term.textContent = label;
+    if (id === remote.editId) {
+      const note = document.createElement('span');
+      note.className = 'edit-link-note';
+      note.textContent = 'Save this link if you want to come back to editing later.';
+      term.append(note);
+    }
     const definition = document.createElement('dd');
     const url = ClosenessAPI.timelineURL(id);
     const button = document.createElement('button');
@@ -1385,7 +1397,7 @@ async function saveLink(publish) {
     }
   } catch (error) {
     deferredCopy?.reject(error);
-    resultText.textContent = error.message;
+    resultText.textContent = error.message + ' You can still download your timeline below.';
   } finally {
     saving = false;
     render();
@@ -1449,10 +1461,15 @@ async function makeExportImage() {
   } catch(error) { if(revision===exportRevision) $('export-status').textContent=error.message; }
   finally { if(revision===exportRevision) exportBusy(false); }
 }
-function openSharing(publish) {
-  $('export-title').textContent = publish ? 'Share your timeline' : 'Save your timeline';
+function openExport(title) {
+  $('export-title').textContent = title;
+  $('timeline-links').hidden = true;
+  $('share-result').textContent = '';
   $('export-dialog').showModal();
   makeExportImage();
+}
+function openSharing(publish) {
+  openExport(publish ? 'Share your timeline' : 'Save your timeline');
   saveLink(publish);
 }
 $('export-names').addEventListener('change',makeExportImage);
