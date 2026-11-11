@@ -107,6 +107,7 @@ dialog .fields{justify-content:end;padding-top:4px}
 #export-dialog{width:min(560px,calc(100vw - 24px));max-height:92dvh;overflow:auto}#export-dialog h2{margin-top:0}#export-dialog .link-list{margin:10px 0;gap:0}#export-dialog .link-list>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid var(--rule)}#export-dialog .link-list dd{margin:0}#export-dialog .link-list dt{letter-spacing:.03em}#export-close{float:right;margin-left:12px}#export-preview,#export-video{display:block;width:auto;max-width:100%;height:auto;max-height:28dvh;margin:12px auto;border:1px solid var(--rule)}#export-video{aspect-ratio:9/16}.export-options{display:flex;gap:16px;align-items:end;flex-wrap:wrap}.export-names{display:flex;gap:8px;align-items:center;font:13px var(--ui)}.export-names input{width:auto;min-height:24px}#export-dialog .fields{flex-wrap:wrap;justify-content:center}
 .link-list{display:grid;gap:10px;max-width:660px;margin:16px auto 0}
 .link-list dt{margin-bottom:3px}
+.link-list .edit-link-note{display:block;margin-top:4px;font:400 .8rem/1.4 var(--ui);letter-spacing:normal;text-transform:none;color:var(--muted)}
 .link-list dd{display:flex;align-items:center;justify-content:center;gap:10px;margin:0}
 .link-list dd a{min-width:0;overflow-wrap:anywhere}
 .link-list dd button{flex-shrink:0}
@@ -1283,6 +1284,12 @@ function displayLinks(showAll) {
     const term = document.createElement('dt');
     term.className = 'label';
     term.textContent = label;
+    if (id === remote.editId) {
+      const note = document.createElement('span');
+      note.className = 'edit-link-note';
+      note.textContent = 'Save this link if you want to come back to editing later.';
+      term.append(note);
+    }
     const definition = document.createElement('dd');
     const url = ClosenessAPI.timelineURL(id);
     const button = document.createElement('button');
