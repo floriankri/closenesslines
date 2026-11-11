@@ -86,7 +86,7 @@ svg{overflow:visible;display:block;width:100%;max-width:420px;height:840px}
 </main>
 <script src="./config.js"></script>
 <script src="./api.js"></script>
-<script src="./timeline-plot.js?v=cf7f82d57f23"></script>
+<script src="./timeline-plot.js?v=7665eecee257"></script>
 <script>
 'use strict';
 
@@ -132,6 +132,14 @@ async function openTimeline() {
     createdLabel.hidden = !createdText;
     let selected = null;
     const buttons = [];
+    const choose = index => {
+      selected = selected === index ? null : index;
+      buttons.forEach((control, i) => control.setAttribute('aria-pressed', String(i === selected)));
+      draw();
+    };
+    document.addEventListener('click', event => {
+      if (selected !== null && !event.target.closest?.('#lines button, [data-relationship-index]')) choose(null);
+    });
     const scaleButtons = [...document.querySelectorAll('[data-time-scale]')];
     const updateScale = mode => {
       ClosenessPlot.setTimeScale(mode);
@@ -140,7 +148,7 @@ async function openTimeline() {
     };
     scaleButtons.forEach(button => button.addEventListener('click', () => updateScale(button.dataset.timeScale)));
     scaleButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.timeScale === ClosenessPlot.getTimeScale())));
-    const draw = () => ClosenessPlot.render(plot, { age: result.age, duration: result.duration ?? result.timeline?.duration ?? result.age, lines, events, ending, selected, tooltip, compactEvents: matchMedia('(max-width:680px)').matches });
+    const draw = () => ClosenessPlot.render(plot, { age: result.age, duration: result.duration ?? result.timeline?.duration ?? result.age, lines, events, ending, selected, tooltip, onSelect: choose, compactEvents: matchMedia('(max-width:680px)').matches });
     lines.forEach((line, index) => {
       const item = document.createElement('li');
       const button = document.createElement('button');
@@ -151,11 +159,7 @@ async function openTimeline() {
       if (/^#[0-9a-f]{6}$/i.test(line.color)) swatch.style.color = line.color;
       swatch.style.borderTopStyle='solid';
       button.append(swatch, document.createTextNode(line.label || 'Relationship'));
-      button.addEventListener('click', () => {
-        selected = selected === index ? null : index;
-        buttons.forEach((control, i) => control.setAttribute('aria-pressed', String(i === selected)));
-        draw();
-      });
+      button.addEventListener('click', () => choose(index));
       buttons.push(button);
       item.append(button);
       list.append(item);
