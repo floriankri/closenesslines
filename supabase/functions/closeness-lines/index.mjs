@@ -42,7 +42,8 @@ function createSupabaseStore(projectUrl, key, legacy) {
   return {
     consumeRateLimit,
     insert(record) {
-      const { duration: _duration, ...stored } = record;
+      // Duration and public event projections are derived from the stored timeline JSON.
+      const { duration: _duration, events: _events, ...stored } = record;
       return data({}, { method: 'POST', record: stored, prefer: 'return=minimal' });
     },
     async findEdit(hash) {
