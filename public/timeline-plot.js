@@ -155,7 +155,7 @@ const ClosenessPlot = (() => {
       }).filter(x => x >= 0 && x <= plot.width);
   }
 
-  function render(svg, { age, duration = age, lines, events = [], ending = 'snapshot', selected = null, preview = false, tooltip = null, compactEvents = false, timeScale = preview ? 'recent' : getTimeScale() }) {
+  function render(svg, { age, duration = age, lines, events = [], ending = 'snapshot', selected = null, preview = false, tooltip = null, compactEvents = false, onSelect = null, timeScale = preview ? 'recent' : getTimeScale() }) {
     const width = preview ? 210 : svg.clientWidth || 600;
     const height = preview ? width * 16 / 9 : svg.clientHeight || 840;
     const mid = width / 2;
@@ -280,7 +280,7 @@ const ClosenessPlot = (() => {
       const [endX, endY] = points.at(-1);
       const color = /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : ink;
       const emphasized = selected === index;
-      const thread = node('g', { opacity: selected === null || emphasized ? 1 : .25 });
+      const thread = node('g', { opacity: selected === null || emphasized ? 1 : .46 });
       const curve = node('path', { d: pathFor(points), fill: 'none', stroke: color, 'stroke-dasharray':'',
         'stroke-width': lineWidth + (emphasized ? 1 : 0), 'stroke-linecap': 'round' });
       if (line.ending === 'fade' && points.length > 1) {
@@ -304,6 +304,11 @@ const ClosenessPlot = (() => {
           'stroke-linecap': 'round', 'pointer-events': 'stroke', 'class': 'plot-hit',
           ...(preview ? {} : { tabindex: 0, role: 'button', 'aria-label': line.label })
         });
+        if (!preview && onSelect) {
+          hit.setAttribute('data-relationship-index', index);
+          hit.setAttribute('aria-pressed', String(emphasized));
+          hit.addEventListener('click', () => onSelect(index));
+        }
         const show = event => {
           if (!tooltip) return;
           tooltip.textContent = line.label;
@@ -326,7 +331,12 @@ const ClosenessPlot = (() => {
         hit.addEventListener('keydown', event => {
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
-          show(event);
+          if (!preview && onSelect) {
+            onSelect(index);
+            svg.querySelector(`[data-relationship-index="${index}"]`)?.focus({ preventScroll: true });
+          } else {
+            show(event);
+          }
         });
         hit.addEventListener('blur', hide);
         hits.append(hit);
